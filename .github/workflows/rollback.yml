@@ -1,0 +1,93 @@
+name: Rollback
+
+# MVP CHANGE vs current:
+# Rollback is a single workflow_dispatch — pick env, pick target ("previous"
+# or a specific sha), click. The env branch is force-pushed to that artifact
+# in <30s. Slack confirms.
+#
+# In real infra this would flip the k8s selector. The demo simulates by
+# resetting the env/<env> branch to a prior commit on that branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'App (single-app demo, defaults to "main")'
+        type: string
+        default: 'main'
+      env:
+        description: 'Environment to roll back'
+        required: true
+        type: choice
+        options: [staging, prod]
+      target:
+        description: 'Rollback target ("previous" or a specific sha)'
+        required: true
+        type: string
+        default: 'previous'
+
+concurrency:
+  group: rollback-${{ inputs.env }}
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      target_sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve target sha
+        id: target
+        env:
+          ENV: ${{ inputs.env }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/heads/env/$ENV:refs/remotes/origin/env/$ENV"
+          if [[ "$TARGET" == 'previous' ]]; then
+            SHA="$(git log -n 2 --format=%H "origin/env/$ENV" | tail -1)"
+          else
+            SHA="$TARGET"
+          fi
+          if [[ -z "$SHA" ]]; then
+            echo "Could not resolve target on env/$ENV"
+            exit 1
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Rolling env/$ENV back to $SHA"
+
+      - name: Force-push env branch to target
+        env:
+          ENV: ${{ inputs.env }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          git push --force origin "$SHA:refs/heads/env/$ENV"
+
+  notify:
+    needs: rollback
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack confirmation
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          ENV: ${{ inputs.env }}
+          SHA: ${{ needs.rollback.outputs.target_sha }}
+          STATUS: ${{ needs.rollback.result }}
+        run: |
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo 'SLACK_WEBHOOK not set; skipping notify'
+            exit 0
+          fi
+          ICON=':rewind:'
+          [[ "$STATUS" == 'failure' ]] && ICON=':x:'
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\": \"${ICON} Rollback of *${ENV}* → \`${SHA:0:7}\` (${STATUS})\"}" \
+            "$SLACK_WEBHOOK_URL"

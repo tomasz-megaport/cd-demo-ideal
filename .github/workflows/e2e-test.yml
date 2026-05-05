@@ -1,0 +1,70 @@
+name: E2E on test
+
+# IDEAL CHANGE vs MVP:
+# Full Playwright sharded E2E targeting the test env. On green, a
+# `test-passed/<sha>` tag is created — promote-staging consumes it.
+# Concurrency-grouped per env with cancel-in-progress so an older E2E run
+# cannot mark a new sha as passed.
+
+on:
+  workflow_run:
+    workflows: ['Deploy test']
+    types: [completed]
+
+concurrency:
+  group: e2e-test
+  cancel-in-progress: true
+
+jobs:
+  shard:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E shard ${{ matrix.shard }}/4
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/4
+
+  mark-passed:
+    needs: shard
+    if: ${{ success() && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag test-passed
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          SHORT="$(git rev-parse --short "$SHA")"
+          TAG="test-passed/$SHORT"
+          git config user.name 'cd-demo-bot'
+          git config user.email 'cd-demo-bot@example.com'
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Tagged $TAG"

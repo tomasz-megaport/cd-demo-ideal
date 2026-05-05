@@ -1,0 +1,39 @@
+name: Slack notify on failure
+
+# IDEAL: monitors every workflow in the test→staging→prod chain plus
+# quarantine + rollback. Slack only pings on failure (success is silent —
+# the dashboard surfaces green state).
+
+on:
+  workflow_run:
+    workflows: ['CI', 'Deploy test', 'E2E on test', 'Promote to staging', 'Promote to prod', 'Flake quarantine', 'Rollback']
+    types: [completed]
+
+jobs:
+  notify-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          WORKFLOW: ${{ github.event.workflow_run.name }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo 'SLACK_WEBHOOK secret not set; skipping notify'
+            exit 0
+          fi
+          PAYLOAD=$(cat <<JSON
+          {
+            "text": ":rotating_light: *${WORKFLOW}* failed on \`${BRANCH}\` (${SHA:0:7})",
+            "blocks": [
+              { "type": "section", "text": { "type": "mrkdwn", "text": ":rotating_light: *${WORKFLOW}* failed on \`${BRANCH}\` (\`${SHA:0:7}\`)" }},
+              { "type": "section", "text": { "type": "mrkdwn", "text": "<${URL}|View run logs>" }}
+            ]
+          }
+          JSON
+          )
+          curl -fsS -X POST -H 'Content-Type: application/json' -d "$PAYLOAD" "$SLACK_WEBHOOK_URL"

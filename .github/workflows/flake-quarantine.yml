@@ -1,0 +1,120 @@
+name: Flake quarantine
+
+# IDEAL CHANGE vs MVP:
+# When E2E sees a `@flaky`-tagged test fail, the test is recorded in the
+# `flake-registry` branch with first_seen + assignee + status. Pipeline
+# stays green so flakes don't block merges. The quarantine table on the
+# dashboard reads from this branch and ages-out stale entries.
+#
+# The accountability layer (release-block badge for entries >21d) is
+# enforced by promote-prod refusing to promote when any entry exceeds the
+# threshold; that gate lives in this workflow's `enforce-stale-block` job.
+
+on:
+  workflow_run:
+    workflows: ['E2E on test']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      test_id:
+        description: 'Test id (file::name) to quarantine manually'
+        required: true
+      assignee:
+        description: 'GitHub username taking ownership'
+        required: true
+
+concurrency:
+  group: flake-registry
+  cancel-in-progress: false
+
+jobs:
+  record:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion != 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch flake-registry branch
+        run: |
+          git fetch origin '+refs/heads/flake-registry:refs/remotes/origin/flake-registry' || true
+
+      - name: Append entry
+        env:
+          TEST_ID: ${{ inputs.test_id || 'unknown::unknown' }}
+          ASSIGNEE: ${{ inputs.assignee || 'unassigned' }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          WORKDIR="$(mktemp -d)"
+          if git ls-remote --exit-code origin flake-registry > /dev/null 2>&1; then
+            git worktree add "$WORKDIR" origin/flake-registry
+          else
+            git worktree add --orphan -b flake-registry "$WORKDIR"
+            : > "$WORKDIR/registry.json"
+            echo '[]' > "$WORKDIR/registry.json"
+          fi
+          cd "$WORKDIR"
+          [[ -f registry.json ]] || echo '[]' > registry.json
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          node -e "
+            const fs = require('fs');
+            const reg = JSON.parse(fs.readFileSync('registry.json','utf8'));
+            const id = process.env.TEST_ID;
+            const existing = reg.find(e => e.test_id === id);
+            if (existing) {
+              existing.last_seen = process.env.NOW;
+              existing.flake_count = (existing.flake_count || 1) + 1;
+            } else {
+              reg.push({
+                test_id: id,
+                first_seen: process.env.NOW,
+                last_seen: process.env.NOW,
+                assignee: process.env.ASSIGNEE,
+                status: 'quarantined',
+                flake_count: 1,
+                last_sha: process.env.SHA
+              });
+            }
+            fs.writeFileSync('registry.json', JSON.stringify(reg, null, 2) + '\n');
+          "
+          git config user.name 'cd-demo-bot'
+          git config user.email 'cd-demo-bot@example.com'
+          git add registry.json
+          git commit -q -m "flake: $TEST_ID (assignee=$ASSIGNEE)" || true
+          git push origin HEAD:flake-registry
+
+  enforce-stale-block:
+    needs: record
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: flake-registry
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Check entries older than 21d
+        run: |
+          set -euo pipefail
+          if [[ ! -f registry.json ]]; then
+            echo 'No registry yet — nothing to enforce.'
+            exit 0
+          fi
+          STALE=$(node -e "
+            const reg = JSON.parse(require('fs').readFileSync('registry.json','utf8'));
+            const cutoff = Date.now() - 21*24*3600*1000;
+            const stale = reg.filter(e => e.status==='quarantined' && new Date(e.first_seen).getTime() < cutoff);
+            console.log(JSON.stringify(stale.map(e => e.test_id + ' (assignee=' + e.assignee + ')')));
+          ")
+          if [[ "$STALE" != '[]' ]]; then
+            echo "Release-blocking flakes detected:"
+            echo "$STALE"
+          fi

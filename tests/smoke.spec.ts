@@ -29,24 +29,24 @@ test.describe('cd-demo smoke', () => {
   test('mermaid diagram updates when stepping', async ({ page }) => {
     await page.goto('/')
 
-    const mermaidContainer = page.locator('#mermaid-container svg')
-    if ((await mermaidContainer.count()) === 0) {
-      test.skip(true, 'no mermaid graph in this demo (placeholder)')
+    // Different demos host the diagram under different IDs
+    // (#mermaid-container, #diagram-container, or just an unwrapped svg).
+    const svg = page.locator('svg').first()
+    if ((await svg.count()) === 0) {
+      test.skip(true, 'no svg present in this demo (placeholder)')
     }
+    await svg.waitFor({ state: 'attached' })
 
-    await mermaidContainer.first().waitFor({ state: 'attached' })
-
-    // Capture a stable fingerprint of node visual state. Different demos
-    // signal active via either (a) an "active" class, (b) inline style on
-    // shapes, or (c) some other approach — so we hash the entire SVG and
-    // require it changes when stepping.
+    // Capture a stable fingerprint of the first svg + its node classes +
+    // any inline shape styles. Demos signal "active" via either an "active"
+    // class or inline shape styling; this catches both.
     const fingerprint = async () => {
-      const svgHtml = await page.locator('#mermaid-container svg').first().innerHTML()
+      const svgHtml = await page.locator('svg').first().innerHTML()
       const classBag = await page
-        .locator('#mermaid-container svg .node')
+        .locator('svg .node')
         .evaluateAll(nodes => nodes.map(n => `${n.id}:${n.getAttribute('class') ?? ''}`).join('|'))
       const inlineBag = await page
-        .locator('#mermaid-container svg .node rect, #mermaid-container svg .node polygon, #mermaid-container svg .node circle')
+        .locator('svg .node rect, svg .node polygon, svg .node circle')
         .evaluateAll(shapes =>
           shapes
             .map(s => `${(s as SVGElement).style.stroke || ''}/${(s as SVGElement).style.filter || ''}`)
