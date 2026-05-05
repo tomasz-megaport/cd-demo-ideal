@@ -1046,6 +1046,9 @@ window.closeModal = closeModal;
 
 // Default banner values when running locally (overwritten by inject-version.js
 // before deploy.sh pushes to env/<env>).
+document.getElementById('sha-display').textContent = 'placeholder';
+document.getElementById('ts-display').textContent = new Date().toISOString();
+document.getElementById('env-display').textContent = 'local';
 </script>
 <script src="dashboard-live.js" defer></script>
 </body>
