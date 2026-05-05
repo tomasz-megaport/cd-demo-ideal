@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>cd-demo placeholder</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; color: #ddd; background: #111; }
+  .version-banner { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1.5rem; }
+  .version-banner span { margin-right: 0.5rem; }
+  .step-counter { margin: 1rem 0; }
+  button { padding: 0.4rem 0.8rem; margin-right: 0.5rem; }
+  button[disabled] { opacity: 0.4; cursor: not-allowed; }
+</style>
+</head>
+<body>
+  <header class="version-banner">
+    <span>sha:</span><span id="sha-display">—</span>
+    <span>env:</span><span id="env-display">—</span>
+    <span>deployed:</span><span id="ts-display">—</span>
+  </header>
+
+  <h1>cd-demo placeholder</h1>
+  <p>Wireframe drops in here in Step 4/5/6.</p>
+
+  <div class="step-counter">Step <strong id="step-num">1</strong> / <span id="step-total">3</span></div>
+  <div>
+    <button id="btn-prev" disabled>Prev</button>
+    <button id="btn-next">Next</button>
+  </div>
+
+<script>
+const TOTAL = 3;
+let current = 1;
+const counter = document.getElementById('step-num');
+const prev = document.getElementById('btn-prev');
+const next = document.getElementById('btn-next');
+function render() {
+  counter.textContent = String(current);
+  prev.disabled = current === 1;
+  next.disabled = current === TOTAL;
+}
+prev.addEventListener('click', () => { if (current > 1) { current--; render(); } });
+next.addEventListener('click', () => { if (current < TOTAL) { current++; render(); } });
+render();
+
+document.getElementById('sha-display').textContent = 'placeholder';
+document.getElementById('ts-display').textContent = new Date().toISOString();
+document.getElementById('env-display').textContent = 'local';
+</script>
+</body>
+</html>

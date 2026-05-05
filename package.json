@@ -1,0 +1,15 @@
+{
+  "name": "cd-demo-ideal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared scaffolding for cd-demo-current / cd-demo-mvp / cd-demo-ideal",
+  "scripts": {
+    "serve": "http-server app -p 4173 -s -c-1",
+    "test": "playwright test",
+    "test:smoke": "playwright test tests/smoke.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "http-server": "^14.1.1"
+  }
+}
