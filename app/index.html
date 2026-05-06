@@ -827,6 +827,39 @@ async function updateDiagram(activeNodeId) {
   try {
     await mermaid.run({ nodes: [container] });
   } catch(e) {}
+  bindDiagramNodeClicks();
+}
+
+function goToStep(idx) {
+  if (idx < 0 || idx >= steps.length) return;
+  currentStep = idx;
+  renderPanel(currentStep);
+}
+
+function bindDiagramNodeClicks() {
+  const svg = document.querySelector('#diagram-container svg');
+  if (!svg) return;
+  svg.querySelectorAll('.node').forEach(node => {
+    const matched = Object.keys(nodeToStep).find(id =>
+      (node.id && node.id.includes('flowchart-' + id + '-')) || node.id === 'flowchart-' + id
+    );
+    if (!matched) return;
+    node.style.cursor = 'pointer';
+    node.addEventListener('mouseenter', () => {
+      if (steps[currentStep].nodeId === matched) return;
+      const shape = node.querySelector('rect, polygon, circle');
+      if (shape) shape.style.filter = 'brightness(1.3)';
+    });
+    node.addEventListener('mouseleave', () => {
+      if (steps[currentStep].nodeId === matched) return;
+      const shape = node.querySelector('rect, polygon, circle');
+      if (shape) shape.style.filter = '';
+    });
+    node.addEventListener('click', () => {
+      const idx = nodeToStep[matched];
+      if (idx !== undefined) goToStep(idx);
+    });
+  });
 }
 
 // ── DASHBOARD DATA ──
