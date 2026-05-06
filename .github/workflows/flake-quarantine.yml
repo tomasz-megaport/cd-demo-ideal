@@ -12,7 +12,7 @@ name: Flake quarantine
 
 on:
   workflow_run:
-    workflows: ['E2E on test']
+    workflows: ['Pipeline']
     types: [completed]
   workflow_dispatch:
     inputs:
