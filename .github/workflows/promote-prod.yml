@@ -66,6 +66,7 @@ jobs:
       - if: ${{ steps.pick.outputs.pick != '' }}
         env:
           GITHUB_SHA: ${{ steps.pick.outputs.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout "${{ steps.pick.outputs.pick }}"
           git config user.name 'cd-demo-bot'

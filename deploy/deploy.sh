@@ -84,6 +84,16 @@ rm -f "$TMP_VERSION"
 
 node inject-version.js --app-dir=app
 
+# In CI we run inside a fresh `git init` worktree (mktemp) which doesn't
+# inherit the auth header `actions/checkout` set on the main repo. If
+# GITHUB_TOKEN is in env, register it as a global insteadOf rule so the
+# fresh worktree can push without a credential helper.
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  git config --global \
+    "url.https://x-access-token:${GITHUB_TOKEN}@github.com/.insteadOf" \
+    "https://github.com/"
+fi
+
 # Build a worktree containing only the app/ contents, push it as the branch.
 WORKTREE_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORKTREE_DIR"' EXIT
