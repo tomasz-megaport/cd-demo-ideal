@@ -437,9 +437,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   </div>
   <div class="spacer"></div>
   <nav class="nav-links">
-    <a href="#" class="nav-link">Current</a>
-    <a href="#" class="nav-link">MVP</a>
-    <a href="#" class="nav-link active">Ideal</a>
+    <a href="https://tomasz-megaport.github.io/cd-demo-current/" class="nav-link">Current</a>
+    <a href="https://tomasz-megaport.github.io/cd-demo-mvp/" class="nav-link">MVP</a>
+    <a href="https://tomasz-megaport.github.io/cd-demo-ideal/" class="nav-link active">Ideal</a>
   </nav>
 </div>
 
@@ -1046,9 +1046,15 @@ window.closeModal = closeModal;
 
 // Default banner values when running locally (overwritten by inject-version.js
 // before deploy.sh pushes to env/<env>).
-document.getElementById('sha-display').textContent = 'placeholder';
-document.getElementById('ts-display').textContent = new Date().toISOString();
-document.getElementById('env-display').textContent = 'local';
+// ── INJECTED VERSION (do not edit by hand) ──
+document.getElementById('sha-display').textContent = '65d0b7f';
+(function () {
+  var tsEl = document.getElementById('ts-display');
+  if (tsEl) tsEl.textContent = '2026-05-05T22:47:32Z';
+  var envEl = document.getElementById('env-display');
+  if (envEl) envEl.textContent = 'prod';
+})();
+// ── END INJECTED VERSION ──
 </script>
 <script src="dashboard-live.js" defer></script>
 </body>

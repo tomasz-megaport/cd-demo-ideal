@@ -69,5 +69,7 @@ deploy/deploy.sh staging --dry-run
 
 ## Sibling demos
 
-- **Current state:** [`cd-demo-current`](../cd-demo-current) — fully manual, every release is a click
-- **MVP target:** [`cd-demo-mvp`](../cd-demo-mvp) — auto staging + cron-promote prod + 1-click rollback
+- **Current state:** [cd-demo-current](https://tomasz-megaport.github.io/cd-demo-current/) — fully manual, every release is a click
+- **MVP target:** [cd-demo-mvp](https://tomasz-megaport.github.io/cd-demo-mvp/) — auto staging + cron-promote prod + 1-click rollback
+
+This demo: <https://tomasz-megaport.github.io/cd-demo-ideal/>
