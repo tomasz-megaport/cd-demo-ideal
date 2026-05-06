@@ -23,13 +23,14 @@ Open the GitHub Pages site for the dual-view UI — toggle between the **Walkthr
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `pipeline.yml` | push / PR / merge_group | single DAG: ci → deploy_test → e2e (4 shards) → tag_test_passed → promote_staging → mark_staging_passed |
-| `promote-prod.yml` | cron `*/10` + `workflow_dispatch` + `repository_dispatch:force-promote` | promote newest soaked `staging-passed/<sha>` |
-| `flake-quarantine.yml` | `workflow_run` on Pipeline failure + manual | append/update `flake-registry` branch; enforce 21d block |
+| `ci.yml` | push / PR / merge_group | lint + smoke test |
+| `deploy-test.yml` | `workflow_run` on CI success on main | deploy to `test` env, cancel-in-progress |
+| `e2e-test.yml` | `workflow_run` on Deploy test success | sharded Playwright; tag `test-passed/<sha>` |
+| `promote-staging.yml` | `push` on `test-passed/*` tag | deploy to staging; tag `staging-passed/<sha>` |
+| `promote-prod.yml` | cron `*/10` + `workflow_dispatch` + `repository_dispatch:force-promote` | promote newest soaked staging-passed |
+| `flake-quarantine.yml` | `workflow_run` on E2E failure + manual | append/update `flake-registry` branch; enforce 21d block |
 | `rollback.yml` | `workflow_dispatch` (or `repository_dispatch` from dashboard) | force-push env branch to previous artifact |
-| `notify.yml` | `workflow_run` failure on Pipeline / Promote / Flake / Rollback | Slack ping |
-
-Single pipeline file = single Actions run page shows the whole graph at once. No PAT required (cross-workflow tag triggers avoided).
+| `notify.yml` | `workflow_run` failure on any of above | Slack ping |
 
 ## Branches
 
