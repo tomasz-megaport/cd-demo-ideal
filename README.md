@@ -21,19 +21,17 @@ Open the GitHub Pages site for the dual-view UI — toggle between the **Walkthr
 
 ## Pipelines
 
-One workflow per phase. Intra-phase steps are jobs in a single file; phase boundaries are crossed via tags so external systems (Sentry, audit logs, monitoring, customer comms) can subscribe to the same artifact identifier.
+Single-DAG pipeline so one Actions run page shows the whole graph: ci → deploy_test → e2e (4 shards) → tag_test_passed → promote_staging → mark_staging_passed.
 
-| Workflow | Trigger | Phase |
+| Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | push / PR / merge_group | CI: lint + smoke test |
-| `deploy-test-and-e2e.yml` | `workflow_run` on CI green on main | Test env: deploy → sharded E2E → tag `test-passed/<sha>` (cancel-in-progress) |
-| `promote-staging.yml` | push tag `test-passed/*` | Staging: deploy → tag `staging-passed/<sha>` |
-| `promote-prod.yml` | cron `*/10` + `workflow_dispatch` + `repository_dispatch:force-promote` | Prod: promote newest soaked `staging-passed/<sha>` |
-| `flake-quarantine.yml` | `workflow_run` on Deploy test + E2E failure + manual | Append/update `flake-registry` branch; enforce 21d block |
+| `pipeline.yml` | push / PR / merge_group | Single DAG: CI → deploy test → sharded E2E → tag `test-passed/<sha>` → deploy staging → tag `staging-passed/<sha>` |
+| `promote-prod.yml` | cron `*/10` + `workflow_dispatch` + `repository_dispatch:force-promote` | Promote newest soaked `staging-passed/<sha>` |
+| `flake-quarantine.yml` | `workflow_run` on Pipeline failure + manual | Append/update `flake-registry` branch; enforce 21d block |
 | `rollback.yml` | `workflow_dispatch` (or `repository_dispatch` from dashboard) | Force-push env branch to previous artifact |
-| `notify.yml` | `workflow_run` failure on any of above | Slack ping |
+| `notify.yml` | `workflow_run` failure on Pipeline / Promote / Flake / Rollback | Slack ping |
 
-Why phase-based not single-DAG: tags (`test-passed/<sha>`, `staging-passed/<sha>`) are immutable release identifiers consumed by external systems and outlive 90-day workflow run retention. Within a phase, jobs use `needs:` (no PAT). At the test → staging phase boundary, push:tags trigger requires `CICD_PAT` because default `GITHUB_TOKEN`-pushed tags don't trigger workflows. The staging → prod boundary uses cron-poll, no PAT needed.
+Tags still emitted from inside the pipeline so external systems (Sentry releases, audit logs, monitoring, customer comms) can subscribe to the immutable artifact identifier — they outlive 90-day workflow run retention. No PAT required because all handoffs use `needs:` not push:tags triggers.
 
 ## Branches
 
