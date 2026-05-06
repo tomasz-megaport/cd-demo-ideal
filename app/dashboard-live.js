@@ -39,11 +39,14 @@
       envs.map(async envName => {
         try {
           const v = await fetchVersionFor(envName)
+          const sha = (v.sha || '').toString().slice(0, 7)
+          const ver = v.version || (sha ? sha : '—')
+          const at = relativeTime(v.deployed_at)
           for (const app of apps) {
             if (window.cardData[app] && window.cardData[app][envName]) {
-              window.cardData[app][envName].sha = (v.sha || '').toString().slice(0, 7) || window.cardData[app][envName].sha
-              window.cardData[app][envName].ver = v.version || window.cardData[app][envName].ver
-              window.cardData[app][envName].deployed = v.deployed_at || window.cardData[app][envName].deployed
+              window.cardData[app][envName].sha = sha || window.cardData[app][envName].sha
+              window.cardData[app][envName].ver = ver
+              window.cardData[app][envName].at = at || window.cardData[app][envName].at
             }
           }
         } catch (err) {
@@ -52,6 +55,21 @@
       }),
     )
     if (typeof window.renderDashboard === 'function') window.renderDashboard()
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return ''
+    const t = Date.parse(iso)
+    if (Number.isNaN(t)) return ''
+    const diff = Math.max(0, Date.now() - t)
+    const s = Math.round(diff / 1000)
+    if (s < 60) return `${s}s ago`
+    const m = Math.round(s / 60)
+    if (m < 60) return `${m}m ago`
+    const h = Math.round(m / 60)
+    if (h < 48) return `${h}h ago`
+    const d = Math.round(h / 24)
+    return `${d}d ago`
   }
 
   // Override the wireframe stub. Promotes the existing modal to a real

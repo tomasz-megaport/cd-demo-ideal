@@ -830,23 +830,17 @@ async function updateDiagram(activeNodeId) {
 }
 
 // ── DASHBOARD DATA ──
-const apps = ['portal', 'cma', 'ens'];
+// Single demo app; real env state populated by dashboard-live.js fetching
+// raw.githubusercontent.com/<owner>/<repo>/env/<env>/version.json. The
+// metrics fields (p95/err) stay illustrative — production would source them
+// from DataDog/Prometheus.
+const apps = ['cd-demo'];
 const envs = ['test', 'staging', 'prod'];
 const cardData = {
-  portal: {
-    test:    { health:'healthy',  ver:'v7.462.0', sha:'c9e3a11', at:'4m ago',   by:'ci-bot',  p95:'142ms', err:'0.1%', p95t:'down', errt:'down' },
-    staging: { health:'degraded', ver:'v7.461.0', sha:'a3f92c1', at:'2h ago',   by:'ci-bot',  p95:'318ms', err:'1.4%', p95t:'up',   errt:'up' },
-    prod:    { health:'healthy',  ver:'v7.460.0', sha:'8b3d119', at:'18h ago',  by:'cron',    p95:'138ms', err:'0.1%', p95t:'flat', errt:'flat' }
-  },
-  cma: {
-    test:    { health:'healthy',  ver:'v3.88.2',  sha:'f02b441', at:'4m ago',   by:'ci-bot',  p95:'89ms',  err:'0.0%', p95t:'down', errt:'flat' },
-    staging: { health:'healthy',  ver:'v3.88.2',  sha:'f02b441', at:'55m ago',  by:'ci-bot',  p95:'91ms',  err:'0.0%', p95t:'flat', errt:'flat' },
-    prod:    { health:'healthy',  ver:'v3.87.0',  sha:'d11cc98', at:'2d ago',   by:'cron',    p95:'87ms',  err:'0.0%', p95t:'flat', errt:'flat' }
-  },
-  ens: {
-    test:    { health:'unhealthy',ver:'v1.14.0',  sha:'e55aa02', at:'8m ago',   by:'ci-bot',  p95:'—',     err:'—',    p95t:'flat', errt:'flat' },
-    staging: { health:'healthy',  ver:'v1.13.5',  sha:'9a2f771', at:'3h ago',   by:'ci-bot',  p95:'201ms', err:'0.2%', p95t:'flat', errt:'flat' },
-    prod:    { health:'healthy',  ver:'v1.13.5',  sha:'9a2f771', at:'3h ago',   by:'cron',    p95:'198ms', err:'0.2%', p95t:'flat', errt:'flat' }
+  'cd-demo': {
+    test:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'142ms', err:'0.1%', p95t:'down', errt:'down' },
+    staging: { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'138ms', err:'0.1%', p95t:'flat', errt:'flat' },
+    prod:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'135ms', err:'0.1%', p95t:'flat', errt:'flat' }
   }
 };
 
