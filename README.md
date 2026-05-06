@@ -21,16 +21,19 @@ Open the GitHub Pages site for the dual-view UI — toggle between the **Walkthr
 
 ## Pipelines
 
-| Workflow | Trigger | What it does |
+One workflow per phase. Intra-phase steps are jobs in a single file; phase boundaries are crossed via tags so external systems (Sentry, audit logs, monitoring, customer comms) can subscribe to the same artifact identifier.
+
+| Workflow | Trigger | Phase |
 |---|---|---|
-| `ci.yml` | push / PR / merge_group | lint + smoke test |
-| `deploy-test.yml` | `workflow_run` on CI success on main | deploy to `test` env, cancel-in-progress |
-| `e2e-test.yml` | `workflow_run` on Deploy test success | sharded Playwright; tag `test-passed/<sha>` |
-| `promote-staging.yml` | `push` on `test-passed/*` tag | deploy to staging; tag `staging-passed/<sha>` |
-| `promote-prod.yml` | cron `*/10` + `workflow_dispatch` + `repository_dispatch:force-promote` | promote newest soaked staging-passed |
-| `flake-quarantine.yml` | `workflow_run` on E2E failure + manual | append/update `flake-registry` branch; enforce 21d block |
-| `rollback.yml` | `workflow_dispatch` (or `repository_dispatch` from dashboard) | force-push env branch to previous artifact |
+| `ci.yml` | push / PR / merge_group | CI: lint + smoke test |
+| `deploy-test-and-e2e.yml` | `workflow_run` on CI green on main | Test env: deploy → sharded E2E → tag `test-passed/<sha>` (cancel-in-progress) |
+| `promote-staging.yml` | push tag `test-passed/*` | Staging: deploy → tag `staging-passed/<sha>` |
+| `promote-prod.yml` | cron `*/10` + `workflow_dispatch` + `repository_dispatch:force-promote` | Prod: promote newest soaked `staging-passed/<sha>` |
+| `flake-quarantine.yml` | `workflow_run` on Deploy test + E2E failure + manual | Append/update `flake-registry` branch; enforce 21d block |
+| `rollback.yml` | `workflow_dispatch` (or `repository_dispatch` from dashboard) | Force-push env branch to previous artifact |
 | `notify.yml` | `workflow_run` failure on any of above | Slack ping |
+
+Why phase-based not single-DAG: tags (`test-passed/<sha>`, `staging-passed/<sha>`) are immutable release identifiers consumed by external systems and outlive 90-day workflow run retention. Within a phase, jobs use `needs:` (no PAT). At the test → staging phase boundary, push:tags trigger requires `CICD_PAT` because default `GITHUB_TOKEN`-pushed tags don't trigger workflows. The staging → prod boundary uses cron-poll, no PAT needed.
 
 ## Branches
 
