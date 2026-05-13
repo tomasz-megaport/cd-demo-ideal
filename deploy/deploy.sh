@@ -28,8 +28,8 @@ if [[ -z "$ENV_NAME" ]]; then
 fi
 
 case "$ENV_NAME" in
-  pre-prod|sandbox|prod) ;;
-  *) echo "deploy.sh: env must be pre-prod|sandbox|prod (got '$ENV_NAME')" >&2; exit 1 ;;
+  test|staging|prod) ;;
+  *) echo "deploy.sh: env must be test|staging|prod (got '$ENV_NAME')" >&2; exit 1 ;;
 esac
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"

@@ -1,0 +1,74 @@
+name: Promote to prod
+
+# IDEAL CHANGE vs MVP:
+# Same shape as MVP cron-promote. Reads newest `staging-passed/<sha>` tag
+# older than the soak window. The dashboard can also fire this via
+# repository_dispatch with action=force-promote (passcode-gated).
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip soak window'
+        type: boolean
+        default: false
+  repository_dispatch:
+    types: [force-promote]
+
+concurrency:
+  group: promote-prod
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - id: pick
+        env:
+          FORCE: ${{ inputs.force || github.event_name == 'repository_dispatch' }}
+        run: |
+          set -euo pipefail
+          MIN_AGE=300
+          [[ "$FORCE" == 'true' ]] && MIN_AGE=0
+          NOW="$(date +%s)"
+          PICK=""
+          PICK_SHA=""
+          for TAG in $(git tag --list 'staging-passed/*' --sort=-creatordate); do
+            T="$(git log -1 --format=%ct "$TAG")"
+            AGE=$((NOW - T))
+            if [[ $AGE -ge $MIN_AGE ]]; then
+              PICK="$TAG"
+              PICK_SHA="${TAG#staging-passed/}"
+              break
+            fi
+          done
+          if [[ -z "$PICK" ]]; then
+            echo 'Nothing soaked enough to promote.'
+            echo 'pick=' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "pick=$PICK" >> "$GITHUB_OUTPUT"
+          echo "sha=$PICK_SHA" >> "$GITHUB_OUTPUT"
+
+      - if: ${{ steps.pick.outputs.pick != '' }}
+        env:
+          GITHUB_SHA: ${{ steps.pick.outputs.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout "${{ steps.pick.outputs.pick }}"
+          git config user.name 'cd-demo-bot'
+          git config user.email 'cd-demo-bot@example.com'
+          deploy/deploy.sh prod

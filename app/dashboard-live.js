@@ -1,6 +1,6 @@
 // ── dashboard-live.js ──────────────────────────────────────────────────────
 // Bridges the wireframe's static dashboard view to live state from GitHub:
-//   1. Fetches env/<env>/version.json for each env (pre-prod/sandbox/prod) and
+//   1. Fetches env/<env>/version.json for each env (test/staging/prod) and
 //      patches the wireframe's `cardData` so the env cards show the real
 //      sha/timestamp once a deploy has landed.
 //   2. Replaces the wireframe's stub `confirmRollback()` with a
@@ -22,7 +22,7 @@
     return
   }
 
-  const envs = ['pre-prod', 'sandbox', 'prod']
+  const envs = ['test', 'staging', 'prod']
   const REFRESH_MS = 30_000
 
   async function fetchVersionFor(envName) {

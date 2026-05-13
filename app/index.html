@@ -281,7 +281,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .env-pill.test { background: rgba(167,139,250,0.12); color: var(--purple); }
-.env-pill.sandbox { background: rgba(45,212,191,0.12); color: var(--teal); }
+.env-pill.staging { background: rgba(45,212,191,0.12); color: var(--teal); }
 .env-pill.prod { background: rgba(245,158,11,0.12); color: var(--gold); }
 .act-meta { font-size: 11px; color: var(--text3); }
 .act-meta .actor { color: var(--text2); }
@@ -511,8 +511,8 @@ flowchart TD
     <div class="grid-section">
       <div class="env-headers">
         <div class="env-header">APP</div>
-        <div class="env-header">PRE-PROD</div>
-        <div class="env-header">SANDBOX</div>
+        <div class="env-header">TEST</div>
+        <div class="env-header">STAGING</div>
         <div class="env-header">PROD</div>
       </div>
       <div id="app-grid"></div>
@@ -575,7 +575,7 @@ flowchart TD
         <span class="modal-row-val bad" id="modal-sentry">⚠ 2 active issues in v7.461.0</span>
       </div>
       <div class="modal-warning">
-        ⚠ This restores the previous docker image — same primitive staff engineers use for emergency rollback. Completes in seconds. The current image stays cached for re-promotion.
+        ⚠ This will swap the k8s Service selector to the blue stack. Blue pods are warm — rollback completes in &lt;30s. The current green stack remains available for re-promotion.
       </div>
     </div>
     <div class="modal-foot">
@@ -860,29 +860,29 @@ function bindDiagramNodeClicks() {
 // metrics fields (p95/err) stay illustrative — production would source them
 // from DataDog/Prometheus.
 const apps = ['cd-demo'];
-const envs = ['pre-prod', 'sandbox', 'prod'];
+const envs = ['test', 'staging', 'prod'];
 const cardData = {
   'cd-demo': {
-    'pre-prod': { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'142ms', err:'0.1%', p95t:'down', errt:'down' },
-    sandbox:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'138ms', err:'0.1%', p95t:'flat', errt:'flat' },
-    prod:       { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'135ms', err:'0.1%', p95t:'flat', errt:'flat' }
+    test:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'142ms', err:'0.1%', p95t:'down', errt:'down' },
+    staging: { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'138ms', err:'0.1%', p95t:'flat', errt:'flat' },
+    prod:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'135ms', err:'0.1%', p95t:'flat', errt:'flat' }
   }
 };
 
 const activity = [
-  { time:'14:32:01', app:'ens',    ver:'v1.14.0', env:'pre-prod', actor:'ci-bot',  reason:'auto on merge · sha e55aa02' },
-  { time:'14:31:58', app:'cma',    ver:'v3.88.2', env:'pre-prod', actor:'ci-bot',  reason:'auto on merge · sha f02b441' },
-  { time:'14:31:55', app:'portal', ver:'v7.462.0',env:'pre-prod', actor:'ci-bot',  reason:'auto on merge · sha c9e3a11' },
-  { time:'08:00:03', app:'portal', ver:'v7.461.0',env:'sandbox',  actor:'cron',    reason:'parallel promote · pre-prod-passed a3f92c1' },
-  { time:'08:00:03', app:'portal', ver:'v7.461.0',env:'prod',     actor:'cron',    reason:'parallel promote · pre-prod-passed a3f92c1' },
-  { time:'08:00:03', app:'ens',    ver:'v1.13.5', env:'sandbox',  actor:'cron',    reason:'parallel promote · pre-prod-passed b9c8d7e' },
-  { time:'08:00:03', app:'ens',    ver:'v1.13.5', env:'prod',     actor:'cron',    reason:'parallel promote · pre-prod-passed b9c8d7e' },
-  { time:'yesterday', app:'cma',   ver:'v3.87.0', env:'prod',     actor:'cron',    reason:'08:00 AEST cron window' }
+  { time:'14:32:01', app:'ens',    ver:'v1.14.0', env:'test',    actor:'ci-bot',  reason:'auto on merge · sha e55aa02' },
+  { time:'14:31:58', app:'cma',    ver:'v3.88.2', env:'test',    actor:'ci-bot',  reason:'auto on merge · sha f02b441' },
+  { time:'14:31:55', app:'portal', ver:'v7.462.0',env:'test',    actor:'ci-bot',  reason:'auto on merge · sha c9e3a11' },
+  { time:'12:18:44', app:'portal', ver:'v7.461.0',env:'staging', actor:'ci-bot',  reason:'test-passed tag a3f92c1' },
+  { time:'11:02:10', app:'cma',    ver:'v3.88.2', env:'staging', actor:'ci-bot',  reason:'test-passed tag f02b441' },
+  { time:'08:00:03', app:'ens',    ver:'v1.13.5', env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' },
+  { time:'07:59:50', app:'cma',    ver:'v3.87.0', env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' },
+  { time:'yesterday', app:'portal',ver:'v7.460.0',env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' }
 ];
 
 const alerts = [
-  { sev:'red',   title:'portal · sandbox: p95 latency spike',  sub:'2.3× baseline · since 12:22 UTC' },
-  { sev:'amber', title:'ens · pre-prod: deploy health check failing', sub:'3 consecutive failures · ens-pre-prod ns' }
+  { sev:'red',   title:'portal · staging: p95 latency spike',  sub:'2.3× baseline · since 12:22 UTC' },
+  { sev:'amber', title:'ens · test: deploy health check failing', sub:'3 consecutive failures · ens-test ns' }
 ];
 
 const flakes = [
@@ -899,7 +899,7 @@ function renderGrid() {
       const trendIcon = { up:'↑', down:'↓', flat:'→' };
       const trendClass = { up:'trend-up', down:'trend-down', flat:'trend-flat' };
       const canPromote = env !== 'prod';
-      const canRollback = env !== 'pre-prod';
+      const canRollback = env !== 'test';
       const promoteBtn = canPromote ? `<button class="card-btn promote" onclick="event.stopPropagation()">Promote →</button>` : '';
       const rollbackBtn = canRollback ? `<button class="card-btn rollback" onclick="openRollback('${app}','${env}')">↺ Rollback</button>` : '';
       return `<div class="release-card ${d.health}">
@@ -995,7 +995,7 @@ function openRollback(app, env) {
   document.getElementById('modal-app').textContent = `${app} · ${env}`;
   document.getElementById('modal-cur').textContent = `${d.ver} · ${d.sha}`;
   // fake previous
-  const prev = { portal:{ prod:'v7.459.0 · 2c8f003', sandbox:'v7.460.0 · 8b3d119' }, cma:{ prod:'v3.86.0 · a1b2c3d', sandbox:'v3.88.1 · e4f5g6h' }, ens:{ prod:'v1.13.4 · b9c8d7e', sandbox:'v1.13.4 · b9c8d7e' } };
+  const prev = { portal:{ prod:'v7.459.0 · 2c8f003', staging:'v7.460.0 · 8b3d119' }, cma:{ prod:'v3.86.0 · a1b2c3d', staging:'v3.88.1 · e4f5g6h' }, ens:{ prod:'v1.13.4 · b9c8d7e', staging:'v1.13.4 · b9c8d7e' } };
   document.getElementById('modal-prev').textContent = (prev[app]||{})[env] || '—';
   document.getElementById('modal-commits').textContent = env === 'prod' ? '3 commits' : '1 commit';
   document.getElementById('modal-sentry').textContent = d.health === 'degraded' ? '⚠ 2 active issues in current version' : '✓ No active Sentry issues';

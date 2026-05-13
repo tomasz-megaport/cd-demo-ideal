@@ -1,12 +1,12 @@
 name: Slack notify on failure
 
-# IDEAL: monitors every workflow in the pre-prod → sandbox/prod chain plus
+# IDEAL: monitors every workflow in the test→staging→prod chain plus
 # quarantine + rollback. Slack only pings on failure (success is silent —
 # the dashboard surfaces green state).
 
 on:
   workflow_run:
-    workflows: ['Pipeline', 'Promote to sandbox+prod', 'Flake quarantine', 'Rollback']
+    workflows: ['Pipeline', 'Promote to prod', 'Flake quarantine', 'Rollback']
     types: [completed]
 
 jobs:
