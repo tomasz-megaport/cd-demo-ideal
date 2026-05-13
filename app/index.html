@@ -281,7 +281,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .env-pill.test { background: rgba(167,139,250,0.12); color: var(--purple); }
-.env-pill.staging { background: rgba(45,212,191,0.12); color: var(--teal); }
+.env-pill.sandbox { background: rgba(45,212,191,0.12); color: var(--teal); }
 .env-pill.prod { background: rgba(245,158,11,0.12); color: var(--gold); }
 .act-meta { font-size: 11px; color: var(--text3); }
 .act-meta .actor { color: var(--text2); }
@@ -458,17 +458,16 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
         <div class="mermaid" id="diagram-container">
 flowchart TD
   Q["Merge queue\nserialized"]:::active --> A(["PR merged / CI green"]):::node
-  A --> B["Deploy TEST\nconcurrency: cancel-in-progress"]:::new
-  B --> C["E2E smoke on test"]:::new
-  C --> D["test-passed tag"]:::new
-  D --> E["Deploy staging"]:::node
-  E --> F["Soak and Sentry watch"]:::new
-  F --> G(["Cron promote - blue/green"]):::new
-  G --> H(["Live"]):::node
+  A --> B["Deploy pre-prod\nconcurrency: cancel-in-progress"]:::new
+  B --> C["E2E + smoke on pre-prod\nsharded"]:::new
+  C --> D["pre-prod-passed tag"]:::new
+  D --> F["Soak and Sentry watch"]:::new
+  F --> G(["Cron promote\nsandbox + prod (parallel)"]):::new
+  G --> H(["Live (sandbox = prod)"]):::node
   C -."flaky".-> I["Flake quarantine\nauto-Jira / 14d SLA / 21d block"]:::new
   I --> D
-  H -."Sentry alert".-> J["Auto-rollback"]:::new
-  J -."swap".-> H
+  H -."Sentry alert".-> J["Auto-rollback\n(restore previous image)"]:::new
+  J -."restore".-> H
   H -."monitor".-> K["Admin dashboard"]:::new
   K -."rollback".-> J
   classDef node fill:#1a1e28,stroke:#363d52,stroke-width:1.5px,color:#e2e6f0
@@ -512,8 +511,8 @@ flowchart TD
     <div class="grid-section">
       <div class="env-headers">
         <div class="env-header">APP</div>
-        <div class="env-header">TEST</div>
-        <div class="env-header">STAGING</div>
+        <div class="env-header">PRE-PROD</div>
+        <div class="env-header">SANDBOX</div>
         <div class="env-header">PROD</div>
       </div>
       <div id="app-grid"></div>
@@ -576,7 +575,7 @@ flowchart TD
         <span class="modal-row-val bad" id="modal-sentry">⚠ 2 active issues in v7.461.0</span>
       </div>
       <div class="modal-warning">
-        ⚠ This will swap the k8s Service selector to the blue stack. Blue pods are warm — rollback completes in &lt;30s. The current green stack remains available for re-promotion.
+        ⚠ This restores the previous docker image — same primitive staff engineers use for emergency rollback. Completes in seconds. The current image stays cached for re-promotion.
       </div>
     </div>
     <div class="modal-foot">
@@ -610,79 +609,72 @@ const steps = [
   },
   {
     id:"step-2", nodeId:"B", isNew: true,
-    title:"Deploy TEST · concurrency: cancel-in-progress",
-    description:"New k8s namespace 'test', internal-only access via Tailscale. Auto-deploys on every green main CI. DNS pattern: <app>-test.megaport.com. Concurrency-grouped per app with cancel-in-progress so rapid merges don't leave stale E2E jobs running against an overwritten env.",
+    title:"Deploy pre-prod · concurrency: cancel-in-progress",
+    description:"New k8s namespace 'pre-prod', internal-only access via Tailscale. Auto-deploys on every green main CI. DNS pattern: <app>-pre-prod.megaport.com. Concurrency-grouped per app with cancel-in-progress so rapid merges don't leave stale E2E jobs running against an overwritten env.",
     callouts:[
-      {type:"change", text:"NEW — pre-staging env named 'test' (not 'dev' to avoid local confusion)"},
+      {type:"change", text:"NEW — internal env named 'pre-prod' (sits between merge and customer-facing envs)"},
       {type:"change", text:"Internal access only — Tailscale or IP allowlist"},
-      {type:"change", text:"concurrency: deploy-test-${app}, cancel-in-progress: true → newer sha cancels older E2E run"},
-      {type:"gain-reliability", text:"Customer-facing staging never sees raw tip-of-main"},
-      {type:"gain-reliability", text:"No false-positive test-passed tags from E2E runs against overwritten test env"},
+      {type:"change", text:"concurrency: deploy-preprod-${app}, cancel-in-progress: true → newer sha cancels older E2E run"},
+      {type:"gain-reliability", text:"Customer-facing sandbox/prod never see raw tip-of-main"},
+      {type:"gain-reliability", text:"No false-positive pre-prod-passed tags from E2E runs against overwritten pre-prod env"},
       {type:"gain-speed", text:"Fast feedback on every merge without customer exposure"}
     ]
   },
   {
     id:"step-3", nodeId:"C", isNew: true,
-    title:"E2E + smoke on test",
-    description:"Full Playwright E2E + smoke run targets the test env. Sharded for speed. E2E tests live in the monorepo — no cross-repo @main pin.",
+    title:"E2E + smoke on pre-prod (sharded)",
+    description:"Full Playwright E2E + smoke run targets the pre-prod env. 4-shard parallel execution for speed. E2E tests live in the monorepo — no cross-repo @main pin.",
     callouts:[
       {type:"change", text:"NEW — E2E migrated into monorepo, atomic with code changes"},
       {type:"change", text:"NEW — automated full E2E run, no human gate"},
-      {type:"gain-reliability", text:"Bugs caught against real-prod-like infra before staging"},
-      {type:"gain-speed", text:"Sharded parallel execution — wall time matches MVP staging soak"}
+      {type:"gain-reliability", text:"Bugs caught against real-prod-like infra before customer-facing envs"},
+      {type:"gain-speed", text:"4-shard parallel execution — wall time stays low"}
     ]
   },
   {
     id:"step-4", nodeId:"D", isNew: true,
-    title:"test-passed/<sha> tag",
-    description:"On green E2E, a one-way tag is created. This tag is the explicit gate signal that triggers staging promotion.",
+    title:"pre-prod-passed/<sha> tag",
+    description:"On green E2E, a one-way tag is created. This tag is the explicit gate signal authorising sandbox + prod parallel promotion after soak.",
     callouts:[
-      {type:"change", text:"NEW — explicit gate signal, full audit trail of validated builds"},
+      {type:"change", text:"NEW — single explicit gate signal, full audit trail of validated builds"},
       {type:"gain-monitoring", text:"One-way ratchet — tag only created on green, never deleted"},
-      {type:"gain-monitoring", text:"Every prod deploy traceable back to the test-passed tag that authorized it"}
+      {type:"gain-monitoring", text:"Every sandbox/prod deploy traceable back to the pre-prod-passed tag that authorized it"}
     ]
   },
   {
-    id:"step-5", nodeId:"E", isNew: false,
-    title:"Deploy staging",
-    description:"Triggered by test-passed tag. Same staging mechanism, but only images that passed full E2E on test get here.",
-    callouts:[
-      {type:"change", text:"Trigger source changed from auto-on-merge to test-passed tag"},
-      {type:"gain-reliability", text:"Customers see only code that passed full E2E on test first"}
-    ]
-  },
-  {
-    id:"step-6", nodeId:"F", isNew: true,
+    id:"step-5", nodeId:"F", isNew: true,
     title:"Soak + Sentry watch",
-    description:"Staging soak window combined with a release-tag-aware Sentry alert. Compares post-release error rate to 24-hour baseline. Error rate spike → image marked ineligible for prod.",
+    description:"Pre-prod soak window combined with a release-tag-aware Sentry alert. Compares post-release error rate to 24-hour baseline. Error rate spike → image marked ineligible for sandbox/prod.",
     callouts:[
       {type:"change", text:"NEW — release-tag-aware Sentry alert (post-release vs 24h baseline)"},
-      {type:"gain-monitoring", text:"Error-rate regression detected before prod promotion"},
-      {type:"gain-alerts", text:"Auto-veto on staging — bad releases never reach prod"}
+      {type:"gain-monitoring", text:"Error-rate regression detected before customer-facing promotion"},
+      {type:"gain-alerts", text:"Auto-veto on pre-prod — bad releases never reach customers"}
     ]
   },
   {
-    id:"step-7", nodeId:"G", isNew: true,
-    title:"Cron promote prod (blue/green)",
-    description:"Scheduled cron picks the blessed image. Deploys as green stack alongside existing blue. k8s Service selector swaps traffic to green. Blue stays warm for instant rollback.",
+    id:"step-6", nodeId:"G", isNew: true,
+    title:"Cron promote sandbox + prod (parallel)",
+    description:"Scheduled cron picks the blessed pre-prod-passed image and deploys to **sandbox AND prod in parallel** from the same tag, same window. Sandbox is customer-facing rehearsal that mirrors prod exactly. Real schedule: 08:00 / 16:00 / 00:00 AEST (every 8h, 3 deploys per day). Demo: every 10 min for visibility.",
     callouts:[
-      {type:"change", text:"NEW — blue/green deployment via two parallel k8s Deployments"},
-      {type:"change", text:"Traffic swap = single kubectl patch on Service selector"},
-      {type:"gain-fallback", text:"Old pods stay warm — rollback is <30s, no image pull, no restart"},
-      {type:"gain-speed", text:"Zero-downtime deploy; users mid-session don't re-download bundles"}
+      {type:"change", text:"NEW — 8h cron (3 windows per day, global team coverage)"},
+      {type:"change", text:"NEW — sandbox + prod deploy IN PARALLEL from same tag"},
+      {type:"change", text:"Sandbox = renamed staging, MIRRORS prod exactly — no drift"},
+      {type:"gain-reliability", text:"Sandbox rehearsal faithfully reflects what customers see"},
+      {type:"gain-speed", text:"Parallel deploy halves the customer-facing promotion wall time"},
+      {type:"gain-fallback", text:"Rollback restores previous image in seconds — same primitive staff engineers already use"}
     ]
   },
   {
-    id:"step-8", nodeId:"H", isNew: false,
-    title:"Live (zero-downtime)",
-    description:"Green stack now serving traffic. Blue stack on standby. Health monitored continuously by Sentry + Datadog.",
+    id:"step-7", nodeId:"H", isNew: false,
+    title:"Live (sandbox = prod)",
+    description:"Sandbox and prod are now serving the same new image. Both updated in the same cron window. Health monitored continuously by Sentry.",
     callouts:[
-      {type:"gain-reliability", text:"Blue/green = zero-downtime even on rollback"},
+      {type:"gain-reliability", text:"Sandbox cannot drift from prod — they cannot disagree"},
       {type:"gain-monitoring", text:"Continuous health checks; release health visible on dashboard"}
     ]
   },
   {
-    id:"step-9", nodeId:"I", isNew: true,
+    id:"step-8", nodeId:"I", isNew: true,
     title:"Flake quarantine + accountability",
     description:"Failure-rate classifier compares each main run against the last 50. Threshold breach → test auto-quarantined, pipeline green, PR labelled. Accountability layer prevents quarantine rot: auto-Jira ticket with 14d SLA, day 14 → team lead notified, day 21 → quarantined test becomes release-blocking until fixed or explicitly deleted.",
     callouts:[
@@ -698,18 +690,19 @@ const steps = [
     ]
   },
   {
-    id:"step-10", nodeId:"J", isNew: true,
+    id:"step-9", nodeId:"J", isNew: true,
     title:"Auto-rollback on alert",
-    description:"Sentry release-tag-aware alert webhook hits a workflow that runs kubectl patch to swap the k8s Service selector back to the blue stack. No human required.",
+    description:"Sentry release-tag-aware alert webhook hits a workflow that restores the previous docker image — same primitive staff engineers already use for manual rollback. No blue/green infra needed. No human required.",
     callouts:[
-      {type:"change", text:"NEW — Sentry webhook → workflow_dispatch → selector swap"},
+      {type:"change", text:"NEW — Sentry webhook → workflow_dispatch → image restore"},
+      {type:"change", text:"Reuses existing image-restore primitive (no blue/green)"},
       {type:"gain-fallback", text:"Human-out-of-loop rollback for clear-signal regressions"},
       {type:"gain-alerts", text:"Closes the monitoring loop: detect → decide → revert → notify"},
       {type:"gain-monitoring", text:"Every auto-rollback logged with the alert that triggered it"}
     ]
   },
   {
-    id:"step-11", nodeId:"K", isNew: true,
+    id:"step-10", nodeId:"K", isNew: true,
     title:"Admin release dashboard",
     description:"/admin/releases page in portal. Card grid: rows = apps, columns = envs. Each card shows version, sha, health badge, p95 latency, error rate, rollback button. Activity feed + alert/flake panels alongside.",
     callouts:[
@@ -731,7 +724,7 @@ const chipLabels = {
   'gain-alerts': 'ALERTS'
 };
 
-const nodeToStep = { Q:0, A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,I:9,J:10,K:11 };
+const nodeToStep = { Q:0, A:1, B:2, C:3, D:4, F:5, G:6, H:7, I:8, J:9, K:10 };
 
 let currentStep = 0;
 
@@ -772,19 +765,18 @@ function changeStep(delta) {
 const nodeDefs = {
   Q: `Q["Merge queue\nserialized"]`,
   A: `A(["PR merged / CI green"])`,
-  B: `B["Deploy TEST\nconcurrency: cancel-in-progress"]`,
-  C: `C["E2E smoke on test"]`,
-  D: `D["test-passed tag"]`,
-  E: `E["Deploy staging"]`,
+  B: `B["Deploy pre-prod\nconcurrency: cancel-in-progress"]`,
+  C: `C["E2E + smoke on pre-prod\nsharded"]`,
+  D: `D["pre-prod-passed tag"]`,
   F: `F["Soak and Sentry watch"]`,
-  G: `G(["Cron promote - blue/green"])`,
-  H: `H(["Live"])`,
+  G: `G(["Cron promote\nsandbox + prod (parallel)"])`,
+  H: `H(["Live (sandbox = prod)"])`,
   I: `I["Flake quarantine\nauto-Jira / 14d SLA / 21d block"]`,
-  J: `J["Auto-rollback"]`,
+  J: `J["Auto-rollback\n(restore previous image)"]`,
   K: `K["Admin dashboard"]`
 };
 const newNodes = new Set(['Q','B','C','D','F','G','I','J','K']);
-const baseNodes = new Set(['A','E','H']);
+const baseNodes = new Set(['A','H']);
 
 function buildMermaid(activeNodeId) {
   const lines = ['flowchart TD'];
@@ -793,14 +785,14 @@ function buildMermaid(activeNodeId) {
   // Solid edges
   const edges = [
     ['Q','A'],
-    ['A','B'],['B','C'],['C','D'],['D','E'],['E','F'],['F','G'],['G','H'],
+    ['A','B'],['B','C'],['C','D'],['D','F'],['F','G'],['G','H'],
     ['I','D']
   ];
   edges.forEach(([a,b]) => lines.push(`  ${a} --> ${b}`));
   // Dotted edges (always have a label)
   const dotted = [
     ['C','I','flaky'],
-    ['H','J','Sentry'],['J','H','swap'],
+    ['H','J','Sentry'],['J','H','restore'],
     ['H','K','monitor'],['K','J','rollback']
   ];
   dotted.forEach(([a,b,lbl]) => lines.push(`  ${a} -. ${lbl} .-> ${b}`));
@@ -868,29 +860,29 @@ function bindDiagramNodeClicks() {
 // metrics fields (p95/err) stay illustrative — production would source them
 // from DataDog/Prometheus.
 const apps = ['cd-demo'];
-const envs = ['test', 'staging', 'prod'];
+const envs = ['pre-prod', 'sandbox', 'prod'];
 const cardData = {
   'cd-demo': {
-    test:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'142ms', err:'0.1%', p95t:'down', errt:'down' },
-    staging: { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'138ms', err:'0.1%', p95t:'flat', errt:'flat' },
-    prod:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'135ms', err:'0.1%', p95t:'flat', errt:'flat' }
+    'pre-prod': { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'142ms', err:'0.1%', p95t:'down', errt:'down' },
+    sandbox:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'138ms', err:'0.1%', p95t:'flat', errt:'flat' },
+    prod:       { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'135ms', err:'0.1%', p95t:'flat', errt:'flat' }
   }
 };
 
 const activity = [
-  { time:'14:32:01', app:'ens',    ver:'v1.14.0', env:'test',    actor:'ci-bot',  reason:'auto on merge · sha e55aa02' },
-  { time:'14:31:58', app:'cma',    ver:'v3.88.2', env:'test',    actor:'ci-bot',  reason:'auto on merge · sha f02b441' },
-  { time:'14:31:55', app:'portal', ver:'v7.462.0',env:'test',    actor:'ci-bot',  reason:'auto on merge · sha c9e3a11' },
-  { time:'12:18:44', app:'portal', ver:'v7.461.0',env:'staging', actor:'ci-bot',  reason:'test-passed tag a3f92c1' },
-  { time:'11:02:10', app:'cma',    ver:'v3.88.2', env:'staging', actor:'ci-bot',  reason:'test-passed tag f02b441' },
-  { time:'08:00:03', app:'ens',    ver:'v1.13.5', env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' },
-  { time:'07:59:50', app:'cma',    ver:'v3.87.0', env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' },
-  { time:'yesterday', app:'portal',ver:'v7.460.0',env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' }
+  { time:'14:32:01', app:'ens',    ver:'v1.14.0', env:'pre-prod', actor:'ci-bot',  reason:'auto on merge · sha e55aa02' },
+  { time:'14:31:58', app:'cma',    ver:'v3.88.2', env:'pre-prod', actor:'ci-bot',  reason:'auto on merge · sha f02b441' },
+  { time:'14:31:55', app:'portal', ver:'v7.462.0',env:'pre-prod', actor:'ci-bot',  reason:'auto on merge · sha c9e3a11' },
+  { time:'08:00:03', app:'portal', ver:'v7.461.0',env:'sandbox',  actor:'cron',    reason:'parallel promote · pre-prod-passed a3f92c1' },
+  { time:'08:00:03', app:'portal', ver:'v7.461.0',env:'prod',     actor:'cron',    reason:'parallel promote · pre-prod-passed a3f92c1' },
+  { time:'08:00:03', app:'ens',    ver:'v1.13.5', env:'sandbox',  actor:'cron',    reason:'parallel promote · pre-prod-passed b9c8d7e' },
+  { time:'08:00:03', app:'ens',    ver:'v1.13.5', env:'prod',     actor:'cron',    reason:'parallel promote · pre-prod-passed b9c8d7e' },
+  { time:'yesterday', app:'cma',   ver:'v3.87.0', env:'prod',     actor:'cron',    reason:'08:00 AEST cron window' }
 ];
 
 const alerts = [
-  { sev:'red',   title:'portal · staging: p95 latency spike',  sub:'2.3× baseline · since 12:22 UTC' },
-  { sev:'amber', title:'ens · test: deploy health check failing', sub:'3 consecutive failures · ens-test ns' }
+  { sev:'red',   title:'portal · sandbox: p95 latency spike',  sub:'2.3× baseline · since 12:22 UTC' },
+  { sev:'amber', title:'ens · pre-prod: deploy health check failing', sub:'3 consecutive failures · ens-pre-prod ns' }
 ];
 
 const flakes = [
@@ -907,7 +899,7 @@ function renderGrid() {
       const trendIcon = { up:'↑', down:'↓', flat:'→' };
       const trendClass = { up:'trend-up', down:'trend-down', flat:'trend-flat' };
       const canPromote = env !== 'prod';
-      const canRollback = env !== 'test';
+      const canRollback = env !== 'pre-prod';
       const promoteBtn = canPromote ? `<button class="card-btn promote" onclick="event.stopPropagation()">Promote →</button>` : '';
       const rollbackBtn = canRollback ? `<button class="card-btn rollback" onclick="openRollback('${app}','${env}')">↺ Rollback</button>` : '';
       return `<div class="release-card ${d.health}">
@@ -1003,7 +995,7 @@ function openRollback(app, env) {
   document.getElementById('modal-app').textContent = `${app} · ${env}`;
   document.getElementById('modal-cur').textContent = `${d.ver} · ${d.sha}`;
   // fake previous
-  const prev = { portal:{ prod:'v7.459.0 · 2c8f003', staging:'v7.460.0 · 8b3d119' }, cma:{ prod:'v3.86.0 · a1b2c3d', staging:'v3.88.1 · e4f5g6h' }, ens:{ prod:'v1.13.4 · b9c8d7e', staging:'v1.13.4 · b9c8d7e' } };
+  const prev = { portal:{ prod:'v7.459.0 · 2c8f003', sandbox:'v7.460.0 · 8b3d119' }, cma:{ prod:'v3.86.0 · a1b2c3d', sandbox:'v3.88.1 · e4f5g6h' }, ens:{ prod:'v1.13.4 · b9c8d7e', sandbox:'v1.13.4 · b9c8d7e' } };
   document.getElementById('modal-prev').textContent = (prev[app]||{})[env] || '—';
   document.getElementById('modal-commits').textContent = env === 'prod' ? '3 commits' : '1 commit';
   document.getElementById('modal-sentry').textContent = d.health === 'degraded' ? '⚠ 2 active issues in current version' : '✓ No active Sentry issues';

@@ -1,14 +1,17 @@
 name: Pipeline
 
 # IDEAL pipeline as a single DAG so one GH Actions run page shows the
-# whole graph: ci → deploy_test → e2e (4 shards) → tag_test_passed →
-# promote_staging → mark_staging_passed.
+# whole graph: ci → deploy_preprod → e2e (4 shards) → tag_preprod_passed.
 #
-# Tags still emitted (`test-passed/<sha>`, `staging-passed/<sha>`) so
-# external systems (Sentry releases, audit logs, monitoring) can subscribe
-# to the same artifact identifier — they outlive 90-day workflow run
-# retention. Within this single workflow, jobs use `needs:` not
-# tag-triggers, so no PAT is required.
+# After this point, the `promote-sandbox-prod` workflow takes over — its
+# 8h cron picks the newest `pre-prod-passed/<sha>` tag and deploys it to
+# sandbox + prod in parallel.
+#
+# Tags still emitted (`pre-prod-passed/<sha>`) so external systems
+# (Sentry releases, audit logs, monitoring) can subscribe to the same
+# artifact identifier — they outlive 90-day workflow run retention.
+# Within this single workflow, jobs use `needs:` not tag-triggers,
+# so no PAT is required.
 
 on:
   push:
@@ -50,7 +53,7 @@ jobs:
       - name: Smoke test
         run: pnpm test:smoke
 
-  deploy_test:
+  deploy_preprod:
     needs: ci
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
@@ -75,10 +78,10 @@ jobs:
         run: |
           git config user.name 'cd-demo-bot'
           git config user.email 'cd-demo-bot@example.com'
-          deploy/deploy.sh test
+          deploy/deploy.sh pre-prod
 
   e2e:
-    needs: deploy_test
+    needs: deploy_preprod
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -103,8 +106,8 @@ jobs:
       - name: E2E shard ${{ matrix.shard }}/4
         run: pnpm exec playwright test --shard=${{ matrix.shard }}/4
 
-  tag_test_passed:
-    needs: [deploy_test, e2e]
+  tag_preprod_passed:
+    needs: [deploy_preprod, e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,54 +115,13 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tag test-passed
+      - name: Tag pre-prod-passed
         env:
-          SHA: ${{ needs.deploy_test.outputs.sha }}
+          SHA: ${{ needs.deploy_preprod.outputs.sha }}
         run: |
-          TAG="test-passed/$SHA"
+          TAG="pre-prod-passed/$SHA"
           git config user.name 'cd-demo-bot'
           git config user.email 'cd-demo-bot@example.com'
           git tag "$TAG"
           git push origin "$TAG"
-          echo "Tagged $TAG"
-
-  promote_staging:
-    needs: [deploy_test, tag_test_passed]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Deploy staging
-        env:
-          GITHUB_SHA: ${{ needs.deploy_test.outputs.sha }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name 'cd-demo-bot'
-          git config user.email 'cd-demo-bot@example.com'
-          deploy/deploy.sh staging
-
-  mark_staging_passed:
-    needs: [deploy_test, promote_staging]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Tag staging-passed
-        env:
-          SHA: ${{ needs.deploy_test.outputs.sha }}
-        run: |
-          TAG="staging-passed/$SHA"
-          git config user.name 'cd-demo-bot'
-          git config user.email 'cd-demo-bot@example.com'
-          git tag "$TAG"
-          git push origin "$TAG"
-          echo "Marked $TAG"
+          echo "Tagged $TAG — eligible for sandbox+prod cron promotion"

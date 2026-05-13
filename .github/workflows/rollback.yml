@@ -1,12 +1,16 @@
 name: Rollback
 
-# MVP CHANGE vs current:
-# Rollback is a single workflow_dispatch — pick env, pick target ("previous"
-# or a specific sha), click. The env branch is force-pushed to that artifact
-# in <30s. Slack confirms.
+# IDEAL: same primitive as MVP — single workflow_dispatch wrapping the
+# existing image-restore primitive. Pick env (sandbox or prod), pick target
+# ("previous" or a specific sha), click. Restores previous image in seconds.
+# Slack confirms.
 #
-# In real infra this would flip the k8s selector. The demo simulates by
-# resetting the env/<env> branch to a prior commit on that branch.
+# The dashboard at /admin/releases fires this via repository_dispatch
+# (passcode-gated) for the one-click UX, but the underlying workflow is
+# identical to MVP. **No blue/green infra needed.**
+#
+# The demo simulates the image restore by resetting the env/<env> branch
+# to a prior commit on that branch.
 
 on:
   workflow_dispatch:
@@ -19,7 +23,7 @@ on:
         description: 'Environment to roll back'
         required: true
         type: choice
-        options: [staging, prod]
+        options: [sandbox, prod]
       target:
         description: 'Rollback target ("previous" or a specific sha)'
         required: true
