@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ideal CD Flow</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0d0f14;
+  --bg2: #13161d;
+  --bg3: #1a1e28;
+  --bg4: #21263300;
+  --border: #2a2f3e;
+  --border2: #363d52;
+  --text: #e2e6f0;
+  --text2: #8b94a8;
+  --text3: #5a6070;
+  --gold: #f59e0b;
+  --gold2: #fbbf24;
+  --gold-bg: rgba(245,158,11,0.08);
+  --green: #10b981;
+  --green-bg: rgba(16,185,129,0.1);
+  --purple: #a78bfa;
+  --purple-bg: rgba(167,139,250,0.1);
+  --teal: #2dd4bf;
+  --teal-bg: rgba(45,212,191,0.1);
+  --orange: #fb923c;
+  --orange-bg: rgba(251,146,60,0.1);
+  --pink: #f472b6;
+  --pink-bg: rgba(244,114,182,0.1);
+  --red: #f87171;
+  --red-bg: rgba(248,113,113,0.1);
+  --amber: #fbbf24;
+  --amber-bg: rgba(251,191,36,0.1);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 20px; height: 52px;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-title { font-family: var(--mono); font-weight: 600; font-size: 13px; color: var(--gold); letter-spacing: 0.05em; white-space: nowrap; }
+.topbar-sep { width: 1px; height: 20px; background: var(--border2); flex-shrink: 0; }
+.version-banner {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+  padding: 3px 8px; white-space: nowrap;
+}
+.version-banner span { color: var(--text2); }
+.spacer { flex: 1; }
+.nav-links { display: flex; gap: 4px; }
+.nav-link {
+  font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 4px;
+  text-decoration: none; color: var(--text3); transition: all 0.15s;
+}
+.nav-link:hover { color: var(--text); background: var(--bg3); }
+.nav-link.active { color: var(--gold); background: var(--gold-bg); }
+.nav-gh { display: inline-flex; align-items: center; padding: 4px 6px; }
+.nav-gh svg { display: block; }
+.toggle-group {
+  display: flex; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+}
+.toggle-btn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.03em;
+  padding: 5px 12px; background: none; border: none; cursor: pointer; color: var(--text3); transition: all 0.15s;
+}
+.toggle-btn.active { background: var(--gold-bg); color: var(--gold); }
+
+/* ── VIEWS ── */
+.view { display: none; }
+.view.active { display: flex; flex-direction: column; }
+#view-walkthrough.active { height: calc(100vh - 52px); flex-direction: column; }
+#view-dashboard.active { display: block; }
+
+/* ── WALKTHROUGH ── */
+.wk-body { display: flex; flex: 1; overflow: hidden; }
+.wk-left {
+  width: 58%; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; background: var(--bg);
+  overflow: hidden;
+}
+.wk-diagram-wrap {
+  flex: 1; overflow: auto; padding: 24px;
+  display: flex; align-items: center; justify-content: center;
+}
+.wk-right {
+  width: 42%; display: flex; flex-direction: column; background: var(--bg2);
+  overflow: hidden;
+}
+.wk-panel {
+  flex: 1; overflow-y: auto; padding: 20px;
+}
+.wk-panel::-webkit-scrollbar { width: 4px; }
+.wk-panel::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.step-header { margin-bottom: 16px; }
+.step-num { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+.step-title { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.gold-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+  color: var(--gold); background: var(--gold-bg); border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 3px; padding: 2px 6px; margin-left: 8px; vertical-align: middle;
+}
+.step-desc { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
+.callouts { display: flex; flex-direction: column; gap: 8px; }
+.callout {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: 6px; border: 1px solid transparent;
+}
+.callout-chip {
+  font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.07em;
+  padding: 2px 6px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+}
+.callout-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.callout.change { background: var(--green-bg); border-color: rgba(16,185,129,0.2); }
+.callout.change .callout-chip { background: rgba(16,185,129,0.15); color: var(--green); }
+.callout.gain-reliability { background: var(--purple-bg); border-color: rgba(167,139,250,0.2); }
+.callout.gain-reliability .callout-chip { background: rgba(167,139,250,0.15); color: var(--purple); }
+.callout.gain-speed { background: var(--teal-bg); border-color: rgba(45,212,191,0.2); }
+.callout.gain-speed .callout-chip { background: rgba(45,212,191,0.15); color: var(--teal); }
+.callout.gain-fallback { background: var(--orange-bg); border-color: rgba(251,146,60,0.2); }
+.callout.gain-fallback .callout-chip { background: rgba(251,146,60,0.15); color: var(--orange); }
+.callout.gain-monitoring { background: var(--pink-bg); border-color: rgba(244,114,182,0.2); }
+.callout.gain-monitoring .callout-chip { background: rgba(244,114,182,0.15); color: var(--pink); }
+.callout.gain-alerts { background: var(--red-bg); border-color: rgba(248,113,113,0.2); }
+.callout.gain-alerts .callout-chip { background: rgba(248,113,113,0.15); color: var(--red); }
+
+/* Controls */
+.wk-controls {
+  padding: 12px 20px; background: var(--bg2); border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.ctrl-btn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  padding: 6px 14px; border-radius: 5px; border: 1px solid var(--border2);
+  background: var(--bg3); color: var(--text2); cursor: pointer; transition: all 0.15s;
+}
+.ctrl-btn:hover:not(:disabled) { color: var(--text); border-color: var(--border2); background: var(--bg4); }
+.ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ctrl-btn.primary { background: var(--gold-bg); color: var(--gold); border-color: rgba(245,158,11,0.3); }
+.ctrl-btn.primary:hover { background: rgba(245,158,11,0.15); }
+.step-counter { font-family: var(--mono); font-size: 11px; color: var(--text3); flex: 1; text-align: center; }
+.progress-bar { height: 2px; background: var(--border); }
+.progress-fill { height: 100%; background: var(--gold); transition: width 0.3s ease; }
+
+/* Mermaid override */
+.wk-diagram-wrap .mermaid { max-width: 100%; }
+#mermaid-svg { max-width: 100%; height: auto; }
+
+/* ── DASHBOARD ── */
+.dash-body { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.dash-status-strip {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 20px;
+}
+.auto-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.auto-toggle-label { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.auto-toggle {
+  position: relative; width: 36px; height: 20px; cursor: pointer;
+}
+.auto-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.auto-slider {
+  position: absolute; inset: 0; border-radius: 10px; background: var(--border2); transition: 0.2s;
+}
+.auto-slider:before {
+  content: ''; position: absolute; width: 14px; height: 14px;
+  left: 3px; bottom: 3px; background: var(--text3); border-radius: 50%; transition: 0.2s;
+}
+.auto-toggle input:checked + .auto-slider { background: var(--green); }
+.auto-toggle input:checked + .auto-slider:before { transform: translateX(16px); background: #fff; }
+.cron-info { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.cron-info span { color: var(--gold); }
+.freeze-btn {
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+  padding: 5px 12px; border-radius: 5px; border: 1px solid rgba(248,113,113,0.4);
+  background: rgba(248,113,113,0.08); color: var(--red); cursor: pointer; transition: all 0.15s;
+  margin-left: auto;
+}
+.freeze-btn:hover { background: rgba(248,113,113,0.15); }
+.freeze-btn.frozen { background: rgba(248,113,113,0.2); border-color: var(--red); }
+
+/* Card grid */
+.grid-section { margin-bottom: 20px; }
+.grid-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+.env-headers { display: grid; grid-template-columns: 80px repeat(3, 1fr); gap: 8px; margin-bottom: 6px; padding: 0 4px; }
+.env-header { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+.env-header:first-child { text-align: left; }
+.app-row { display: grid; grid-template-columns: 80px repeat(3, 1fr); gap: 8px; margin-bottom: 8px; align-items: start; }
+.app-row-label { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--text2); padding-top: 14px; }
+
+.release-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; transition: border-color 0.15s;
+  position: relative; overflow: hidden;
+}
+.release-card:hover { border-color: var(--border2); }
+.release-card.degraded { border-color: rgba(251,191,36,0.4); }
+.release-card.unhealthy { border-color: rgba(248,113,113,0.4); }
+.release-card.degraded::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--amber);
+}
+.release-card.unhealthy::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--red);
+}
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.card-env { font-family: var(--mono); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; }
+.health-badge {
+  font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
+  padding: 2px 6px; border-radius: 3px; display: flex; align-items: center; gap: 4px;
+}
+.health-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+.health-badge.healthy { background: rgba(16,185,129,0.12); color: var(--green); }
+.health-badge.healthy::before { background: var(--green); }
+.health-badge.degraded { background: rgba(251,191,36,0.12); color: var(--amber); }
+.health-badge.degraded::before { background: var(--amber); box-shadow: 0 0 4px var(--amber); }
+.health-badge.unhealthy { background: rgba(248,113,113,0.12); color: var(--red); }
+.health-badge.unhealthy::before { background: var(--red); box-shadow: 0 0 4px var(--red); }
+.card-version { font-family: var(--mono); font-weight: 600; font-size: 13px; color: var(--text); }
+.card-sha { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.card-meta { font-size: 11px; color: var(--text3); margin: 6px 0 8px; line-height: 1.5; }
+.card-meta span { color: var(--text2); }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 10px; }
+.metric-row { background: var(--bg3); border-radius: 4px; padding: 5px 7px; }
+.metric-label { font-family: var(--mono); font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+.metric-val { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 3px; }
+.trend-up { color: var(--red); font-size: 10px; }
+.trend-down { color: var(--green); font-size: 10px; }
+.trend-flat { color: var(--text3); font-size: 10px; }
+.card-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+.card-btn {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border2);
+  background: var(--bg3); color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.card-btn:hover { color: var(--text); border-color: var(--text3); }
+.card-btn.promote { color: var(--teal); border-color: rgba(45,212,191,0.3); background: rgba(45,212,191,0.06); }
+.card-btn.promote:hover { background: rgba(45,212,191,0.12); }
+.card-btn.rollback { color: var(--orange); border-color: rgba(251,146,60,0.3); background: rgba(251,146,60,0.06); }
+.card-btn.rollback:hover { background: rgba(251,146,60,0.12); }
+
+/* Bottom panels */
+.dash-bottom { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin-top: 4px; }
+.panel-box {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.panel-head {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text2); letter-spacing: 0.05em;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-count { font-size: 10px; padding: 1px 6px; border-radius: 3px; }
+.panel-count.red { background: var(--red-bg); color: var(--red); }
+.panel-count.amber { background: var(--amber-bg); color: var(--amber); }
+
+/* Activity feed */
+.activity-feed { max-height: 200px; overflow-y: auto; }
+.activity-feed::-webkit-scrollbar { width: 4px; }
+.activity-feed::-webkit-scrollbar-thumb { background: var(--border2); }
+.activity-row {
+  display: grid; grid-template-columns: 70px 52px 68px 60px 1fr;
+  gap: 8px; align-items: center;
+  padding: 7px 14px; border-bottom: 1px solid var(--border); font-size: 11px;
+}
+.activity-row:last-child { border-bottom: none; }
+.act-time { font-family: var(--mono); color: var(--text3); font-size: 10px; }
+.act-app { font-family: var(--mono); font-weight: 600; color: var(--text); font-size: 11px; }
+.act-ver { font-family: var(--mono); color: var(--text2); font-size: 10px; }
+.act-env { }
+.env-pill {
+  font-family: var(--mono); font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.env-pill.test { background: rgba(167,139,250,0.12); color: var(--purple); }
+.env-pill.staging { background: rgba(45,212,191,0.12); color: var(--teal); }
+.env-pill.prod { background: rgba(245,158,11,0.12); color: var(--gold); }
+.act-meta { font-size: 11px; color: var(--text3); }
+.act-meta .actor { color: var(--text2); }
+
+/* Side panels */
+.side-panels { display: flex; flex-direction: column; gap: 10px; }
+.alerts-list { max-height: 180px; overflow-y: auto; }
+.alerts-list::-webkit-scrollbar { width: 3px; }
+.alerts-list::-webkit-scrollbar-thumb { background: var(--border2); }
+.alert-row {
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  display: flex; gap: 8px; align-items: flex-start;
+}
+.alert-row:last-child { border-bottom: none; }
+.alert-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.alert-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.alert-dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.alert-info { flex: 1; }
+.alert-title { font-size: 11px; font-weight: 500; color: var(--text); }
+.alert-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 1px; }
+.flake-board-panel { margin-top: 16px; }
+.flake-board { width: 100%; }
+.flake-table-row {
+  display: grid;
+  grid-template-columns: minmax(220px,2fr) 110px 90px 110px 1fr 200px;
+  gap: 12px; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.flake-table-row:last-child { border-bottom: none; }
+.flake-table-row.header {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--bg3); padding: 8px 16px;
+}
+.flake-table-row.row-blocking {
+  background: rgba(248,113,113,0.04);
+  border-left: 2px solid var(--red);
+  padding-left: 14px;
+}
+.flake-test-name { font-family: var(--mono); font-size: 11px; color: var(--text); }
+.flake-since { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.flake-age-cell {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 4px; width: fit-content;
+}
+.flake-age-cell.green { background: rgba(16,185,129,0.12); color: var(--green); }
+.flake-age-cell.amber { background: rgba(251,191,36,0.12); color: var(--amber); }
+.flake-age-cell.red   { background: rgba(248,113,113,0.12); color: var(--red); }
+.flake-age-dot { width: 6px; height: 6px; border-radius: 50%; }
+.flake-age-dot.green { background: var(--green); }
+.flake-age-dot.amber { background: var(--amber); box-shadow: 0 0 4px var(--amber); }
+.flake-age-dot.red   { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.flake-assignee { font-family: var(--mono); font-size: 11px; color: var(--purple); }
+.flake-status { font-size: 11px; color: var(--text2); }
+.flake-status.escalation { color: var(--amber); font-weight: 500; }
+.flake-status.blocking {
+  color: var(--red); font-weight: 700; letter-spacing: 0.04em;
+  background: rgba(248,113,113,0.15); padding: 3px 8px; border-radius: 4px;
+  width: fit-content; display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid rgba(248,113,113,0.3);
+}
+.flake-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.flake-action-btn {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border2);
+  background: var(--bg3); color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.flake-action-btn:hover { color: var(--text); border-color: var(--text3); }
+.flake-action-btn.delete:hover { color: var(--red); border-color: rgba(248,113,113,0.4); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 10px; width: 460px; max-width: 95vw; overflow: hidden;
+  animation: modal-in 0.2s ease;
+}
+@keyframes modal-in { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: none; } }
+.modal-head {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-title { font-size: 14px; font-weight: 600; }
+.modal-close { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px; }
+.modal-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.modal-row:last-child { border-bottom: none; }
+.modal-row-label { font-size: 12px; color: var(--text3); }
+.modal-row-val { font-family: var(--mono); font-size: 12px; color: var(--text); }
+.modal-row-val.bad { color: var(--amber); }
+.modal-row-val.good { color: var(--green); }
+.modal-warning {
+  margin-top: 14px; padding: 10px 12px; border-radius: 6px;
+  background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.25);
+  font-size: 12px; color: var(--red); line-height: 1.5;
+}
+.modal-foot {
+  padding: 14px 20px; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+.modal-btn {
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+  padding: 7px 16px; border-radius: 5px; cursor: pointer; transition: all 0.15s;
+}
+.modal-btn.cancel { background: var(--bg3); border: 1px solid var(--border2); color: var(--text2); }
+.modal-btn.cancel:hover { color: var(--text); }
+.modal-btn.confirm { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.4); color: var(--red); }
+.modal-btn.confirm:hover { background: rgba(248,113,113,0.22); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .wk-body { flex-direction: column; }
+  .wk-left, .wk-right { width: 100%; height: 50%; }
+  .wk-left { border-right: none; border-bottom: 1px solid var(--border); }
+  .env-headers { grid-template-columns: 60px repeat(3, 1fr); }
+  .app-row { grid-template-columns: 60px repeat(3, 1fr); }
+  .flake-table-row { grid-template-columns: minmax(180px,2fr) 90px 80px 1fr 180px; gap: 8px; }
+  .flake-table-row.header > div:nth-child(4),
+  .flake-table-row > div:nth-child(4) { display: none; } /* hide assignee col */
+}
+@media (max-width: 680px) {
+  .topbar { gap: 8px; padding: 0 12px; }
+  .version-banner { display: none; }
+  .nav-links { display: none; }
+  .env-headers { display: none; }
+  .app-row { grid-template-columns: 1fr; }
+  .app-row-label { padding-top: 0; margin-bottom: 4px; }
+  .dash-bottom { grid-template-columns: 1fr; }
+  .side-panels { flex-direction: row; }
+  .flake-table-row { grid-template-columns: 1fr; gap: 4px; padding: 12px 16px; }
+  .flake-table-row.header { display: none; }
+  .flake-actions { justify-content: flex-start; flex-wrap: wrap; }
+}
+</style>
+<meta name="repo-owner" content="tomasz-megaport" />
+<meta name="repo-name" content="cd-demo-ideal" />
+<meta name="rollback-passcode" content="rollback" />
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-title">⬡ IDEAL CD FLOW</div>
+  <div class="version-banner">sha: <span id="sha-display">—</span> · <span id="env-display">—</span> · deployed <span id="ts-display">—</span></div>
+  <div class="toggle-group">
+    <button class="toggle-btn active" onclick="switchView('walkthrough')">WALKTHROUGH</button>
+    <button class="toggle-btn" onclick="switchView('dashboard')">DASHBOARD</button>
+  </div>
+  <div class="spacer"></div>
+  <nav class="nav-links">
+    <a href="https://tomasz-megaport.github.io/cd-demo-current/" class="nav-link">Current</a>
+    <a href="https://tomasz-megaport.github.io/cd-demo-mvp/" class="nav-link">MVP</a>
+    <a href="https://tomasz-megaport.github.io/cd-demo-ideal/" class="nav-link active">Ideal</a>
+    <a href="https://github.com/tomasz-megaport/cd-demo-ideal" class="nav-link nav-gh" target="_blank" rel="noopener" aria-label="Source on GitHub" title="Source on GitHub">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+  </nav>
+</div>
+
+<!-- ═══════════ WALKTHROUGH VIEW ═══════════ -->
+<div id="view-walkthrough" class="view active">
+  <div class="progress-bar"><div class="progress-fill" id="progress" style="width:8%"></div></div>
+  <div class="wk-body">
+    <!-- LEFT: diagram -->
+    <div class="wk-left">
+      <div class="wk-diagram-wrap">
+        <div class="mermaid" id="diagram-container">
+flowchart TD
+  Q["Merge queue\nserialized"]:::active --> A(["PR merged / CI green"]):::node
+  A --> B["Deploy pre-prod\nconcurrency: cancel-in-progress"]:::new
+  B --> C["E2E + smoke on pre-prod\nsharded"]:::new
+  C --> D["pre-prod-passed tag"]:::new
+  D --> F["Soak and Sentry watch"]:::new
+  F --> G(["Cron promote\nsandbox + prod (parallel)"]):::new
+  G --> H(["Live (sandbox = prod)"]):::node
+  C -."flaky".-> I["Flake quarantine\nauto-Jira / 14d SLA / 21d block"]:::new
+  I --> D
+  H -."Sentry alert".-> J["Auto-rollback\n(restore previous image)"]:::new
+  J -."restore".-> H
+  H -."monitor".-> K["Admin dashboard"]:::new
+  K -."rollback".-> J
+  classDef node fill:#1a1e28,stroke:#363d52,stroke-width:1.5px,color:#e2e6f0
+  classDef new fill:#1c1a0e,stroke:#d97706,stroke-width:2px,color:#fbbf24
+  classDef active fill:#581c87,stroke:#a855f7,stroke-width:3px,color:#ffffff
+        </div>
+      </div>
+    </div>
+    <!-- RIGHT: info panel -->
+    <div class="wk-right">
+      <div class="wk-panel" id="info-panel">
+        <!-- filled by JS -->
+      </div>
+      <div class="wk-controls">
+        <button class="ctrl-btn" id="btn-prev" onclick="changeStep(-1)" disabled>← PREV</button>
+        <div class="step-counter" id="step-counter">Step <strong id="step-num">1</strong> of <span id="step-total">11</span></div>
+        <button class="ctrl-btn primary" id="btn-next" onclick="changeStep(1)">NEXT →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ DASHBOARD VIEW ═══════════ -->
+<div id="view-dashboard" class="view">
+  <div class="dash-body">
+    <!-- Status strip -->
+    <div class="dash-status-strip">
+      <div class="auto-toggle-wrap">
+        <span class="auto-toggle-label">AUTO-PROMOTE</span>
+        <label class="auto-toggle">
+          <input type="checkbox" checked onchange="toggleAutoPromote(this)"/>
+          <span class="auto-slider"></span>
+        </label>
+      </div>
+      <div class="topbar-sep"></div>
+      <div class="cron-info">Next cron promote in <span id="cron-countdown">3h 12m</span></div>
+      <button class="freeze-btn" id="freeze-btn" onclick="toggleFreeze()">⏸ Freeze Releases</button>
+    </div>
+
+    <!-- Grid -->
+    <div class="grid-section">
+      <div class="env-headers">
+        <div class="env-header">APP</div>
+        <div class="env-header">TEST</div>
+        <div class="env-header">STAGING</div>
+        <div class="env-header">PROD</div>
+      </div>
+      <div id="app-grid"></div>
+    </div>
+
+    <!-- Bottom: activity + alerts -->
+    <div class="dash-bottom">
+      <div class="panel-box">
+        <div class="panel-head">
+          ACTIVITY FEED
+          <span style="font-size:10px;color:var(--text3)">recent deploys</span>
+        </div>
+        <div class="activity-feed" id="activity-feed"></div>
+      </div>
+      <div class="side-panels">
+        <div class="panel-box">
+          <div class="panel-head">ACTIVE ALERTS <span class="panel-count red">2</span></div>
+          <div class="alerts-list" id="alerts-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flake Quarantine Board (full width) -->
+    <div class="panel-box flake-board-panel">
+      <div class="panel-head">
+        <span>FLAKE QUARANTINE BOARD <span class="panel-count amber" id="flake-count">3</span></span>
+        <span style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:none;letter-spacing:0;">14d SLA · 21d release-block</span>
+      </div>
+      <div class="flake-board" id="flake-board"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ROLLBACK MODAL -->
+<div class="modal-overlay" id="rollback-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">↺ Confirm Rollback</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-row-label">App</span>
+        <span class="modal-row-val" id="modal-app">portal · prod</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-row-label">Current version</span>
+        <span class="modal-row-val bad" id="modal-cur">v7.461.0 · a3f92c1</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-row-label">Rolling back to</span>
+        <span class="modal-row-val good" id="modal-prev">v7.460.0 · 8b3d119</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-row-label">Commits reverted</span>
+        <span class="modal-row-val" id="modal-commits">3 commits</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-row-label">Sentry status</span>
+        <span class="modal-row-val bad" id="modal-sentry">⚠ 2 active issues in v7.461.0</span>
+      </div>
+      <div class="modal-warning">
+        ⚠ This will swap the k8s Service selector to the blue stack. Blue pods are warm — rollback completes in &lt;30s. The current green stack remains available for re-promotion.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="modal-btn cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn confirm" onclick="confirmRollback()">↺ Execute Rollback</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STEPS DATA ──
+const steps = [
+  {
+    id:"step-0", nodeId:"Q", isNew: true,
+    title:"Merge queue (serialized merges)",
+    description:"GitHub Merge Queue gates main. PRs queue and CI runs against the merge group head before landing. Only one merge at a time reaches main.",
+    callouts:[
+      {type:"change", text:"NEW — GitHub Merge Queue enabled on main"},
+      {type:"gain-reliability", text:"Eliminates 'PR A green, PR B green, both merged = broken' race entirely"},
+      {type:"gain-reliability", text:"Prevents out-of-order merges that would break test-env concurrency assumptions"}
+    ]
+  },
+  {
+    id:"step-1", nodeId:"A", isNew: false,
+    title:"PR merged · CI green",
+    description:"Same entry as MVP. The workflow_run trigger fires once CI passes on main — no new risk surface introduced.",
+    callouts:[
+      {type:"change", text:"Trigger reused from MVP — proven, no new risk surface"},
+      {type:"gain-reliability", text:"Same starting point with significantly more validation downstream"}
+    ]
+  },
+  {
+    id:"step-2", nodeId:"B", isNew: true,
+    title:"Deploy pre-prod · concurrency: cancel-in-progress",
+    description:"New k8s namespace 'pre-prod', internal-only access via Tailscale. Auto-deploys on every green main CI. DNS pattern: <app>-pre-prod.megaport.com. Concurrency-grouped per app with cancel-in-progress so rapid merges don't leave stale E2E jobs running against an overwritten env.",
+    callouts:[
+      {type:"change", text:"NEW — internal env named 'pre-prod' (sits between merge and customer-facing envs)"},
+      {type:"change", text:"Internal access only — Tailscale or IP allowlist"},
+      {type:"change", text:"concurrency: deploy-preprod-${app}, cancel-in-progress: true → newer sha cancels older E2E run"},
+      {type:"gain-reliability", text:"Customer-facing sandbox/prod never see raw tip-of-main"},
+      {type:"gain-reliability", text:"No false-positive pre-prod-passed tags from E2E runs against overwritten pre-prod env"},
+      {type:"gain-speed", text:"Fast feedback on every merge without customer exposure"}
+    ]
+  },
+  {
+    id:"step-3", nodeId:"C", isNew: true,
+    title:"E2E + smoke on pre-prod (sharded)",
+    description:"Full Playwright E2E + smoke run targets the pre-prod env. 4-shard parallel execution for speed. E2E tests live in the monorepo — no cross-repo @main pin.",
+    callouts:[
+      {type:"change", text:"NEW — E2E migrated into monorepo, atomic with code changes"},
+      {type:"change", text:"NEW — automated full E2E run, no human gate"},
+      {type:"gain-reliability", text:"Bugs caught against real-prod-like infra before customer-facing envs"},
+      {type:"gain-speed", text:"4-shard parallel execution — wall time stays low"}
+    ]
+  },
+  {
+    id:"step-4", nodeId:"D", isNew: true,
+    title:"pre-prod-passed/<sha> tag",
+    description:"On green E2E, a one-way tag is created. This tag is the explicit gate signal authorising sandbox + prod parallel promotion after soak.",
+    callouts:[
+      {type:"change", text:"NEW — single explicit gate signal, full audit trail of validated builds"},
+      {type:"gain-monitoring", text:"One-way ratchet — tag only created on green, never deleted"},
+      {type:"gain-monitoring", text:"Every sandbox/prod deploy traceable back to the pre-prod-passed tag that authorized it"}
+    ]
+  },
+  {
+    id:"step-5", nodeId:"F", isNew: true,
+    title:"Soak + Sentry watch",
+    description:"Pre-prod soak window combined with a release-tag-aware Sentry alert. Compares post-release error rate to 24-hour baseline. Error rate spike → image marked ineligible for sandbox/prod.",
+    callouts:[
+      {type:"change", text:"NEW — release-tag-aware Sentry alert (post-release vs 24h baseline)"},
+      {type:"gain-monitoring", text:"Error-rate regression detected before customer-facing promotion"},
+      {type:"gain-alerts", text:"Auto-veto on pre-prod — bad releases never reach customers"}
+    ]
+  },
+  {
+    id:"step-6", nodeId:"G", isNew: true,
+    title:"Cron promote sandbox + prod (parallel)",
+    description:"Scheduled cron picks the blessed pre-prod-passed image and deploys to **sandbox AND prod in parallel** from the same tag, same window. Sandbox is customer-facing rehearsal that mirrors prod exactly. Real schedule: 08:00 / 16:00 / 00:00 AEST (every 8h, 3 deploys per day). Demo: every 10 min for visibility.",
+    callouts:[
+      {type:"change", text:"NEW — 8h cron (3 windows per day, global team coverage)"},
+      {type:"change", text:"NEW — sandbox + prod deploy IN PARALLEL from same tag"},
+      {type:"change", text:"Sandbox = renamed staging, MIRRORS prod exactly — no drift"},
+      {type:"gain-reliability", text:"Sandbox rehearsal faithfully reflects what customers see"},
+      {type:"gain-speed", text:"Parallel deploy halves the customer-facing promotion wall time"},
+      {type:"gain-fallback", text:"Rollback restores previous image in seconds — same primitive staff engineers already use"}
+    ]
+  },
+  {
+    id:"step-7", nodeId:"H", isNew: false,
+    title:"Live (sandbox = prod)",
+    description:"Sandbox and prod are now serving the same new image. Both updated in the same cron window. Health monitored continuously by Sentry.",
+    callouts:[
+      {type:"gain-reliability", text:"Sandbox cannot drift from prod — they cannot disagree"},
+      {type:"gain-monitoring", text:"Continuous health checks; release health visible on dashboard"}
+    ]
+  },
+  {
+    id:"step-8", nodeId:"I", isNew: true,
+    title:"Flake quarantine + accountability",
+    description:"Failure-rate classifier compares each main run against the last 50. Threshold breach → test auto-quarantined, pipeline green, PR labelled. Accountability layer prevents quarantine rot: auto-Jira ticket with 14d SLA, day 14 → team lead notified, day 21 → quarantined test becomes release-blocking until fixed or explicitly deleted.",
+    callouts:[
+      {type:"change", text:"NEW — post-merge failure-rate classifier on main (not PR-time, math doesn't work there)"},
+      {type:"change", text:"NEW — auto-Jira ticket with 14d SLA assigned to test owner / last-touched author"},
+      {type:"change", text:"NEW — day 21 escalation: stale quarantine becomes release-blocking"},
+      {type:"change", text:"Optional PR-time hint: 3 retries on flagged tests + non-blocking PR comment"},
+      {type:"gain-reliability", text:"Org-wide lockout from a single flaky test eliminated"},
+      {type:"gain-reliability", text:"Quarantine cannot rot — escalation forces fix or explicit deletion"},
+      {type:"gain-speed", text:"Pipeline stays green; releases continue while flake is fixed asynchronously"},
+      {type:"gain-monitoring", text:"Quarantine board on dashboard shows ages + assignees publicly — social pressure"},
+      {type:"gain-alerts", text:"Flake alert routed to PR author + #flake-watch channel, not buried in workflow logs"}
+    ]
+  },
+  {
+    id:"step-9", nodeId:"J", isNew: true,
+    title:"Auto-rollback on alert",
+    description:"Sentry release-tag-aware alert webhook hits a workflow that restores the previous docker image — same primitive staff engineers already use for manual rollback. No blue/green infra needed. No human required.",
+    callouts:[
+      {type:"change", text:"NEW — Sentry webhook → workflow_dispatch → image restore"},
+      {type:"change", text:"Reuses existing image-restore primitive (no blue/green)"},
+      {type:"gain-fallback", text:"Human-out-of-loop rollback for clear-signal regressions"},
+      {type:"gain-alerts", text:"Closes the monitoring loop: detect → decide → revert → notify"},
+      {type:"gain-monitoring", text:"Every auto-rollback logged with the alert that triggered it"}
+    ]
+  },
+  {
+    id:"step-10", nodeId:"K", isNew: true,
+    title:"Admin release dashboard",
+    description:"/admin/releases page in portal. Card grid: rows = apps, columns = envs. Each card shows version, sha, health badge, p95 latency, error rate, rollback button. Activity feed + alert/flake panels alongside.",
+    callouts:[
+      {type:"change", text:"NEW — single screen for state + control + history"},
+      {type:"change", text:"Reuses MVP rollback.yml — UI is just a friendlier client"},
+      {type:"gain-monitoring", text:"Single source of truth: no Slack scrollback to find what's live"},
+      {type:"gain-fallback", text:"One-click rollback accessible to non-engineers (support, PMs, on-call)"},
+      {type:"gain-alerts", text:"Inline alert feed lets responders correlate incidents to releases instantly"}
+    ]
+  }
+];
+
+const chipLabels = {
+  change: 'CHANGE',
+  'gain-reliability': 'RELIABILITY',
+  'gain-speed': 'SPEED',
+  'gain-fallback': 'FALLBACK',
+  'gain-monitoring': 'MONITORING',
+  'gain-alerts': 'ALERTS'
+};
+
+const nodeToStep = { Q:0, A:1, B:2, C:3, D:4, F:5, G:6, H:7, I:8, J:9, K:10 };
+
+let currentStep = 0;
+
+function renderPanel(idx) {
+  const s = steps[idx];
+  const panel = document.getElementById('info-panel');
+  const badgeHtml = s.isNew ? '<span class="gold-badge">★ NEW IN IDEAL</span>' : '';
+  const calloutsHtml = s.callouts.map(c =>
+    `<div class="callout ${c.type}">
+      <span class="callout-chip">${chipLabels[c.type]}</span>
+      <span class="callout-text">${c.text}</span>
+    </div>`
+  ).join('');
+  panel.innerHTML = `
+    <div class="step-header">
+      <div class="step-num">Step ${idx+1} of ${steps.length}</div>
+      <div class="step-title">${s.title} ${badgeHtml}</div>
+    </div>
+    <div class="step-desc">${s.description}</div>
+    <div class="callouts">${calloutsHtml}</div>
+  `;
+  document.getElementById('step-num').textContent = String(idx + 1);
+  document.getElementById('step-total').textContent = String(steps.length);
+  document.getElementById('btn-prev').disabled = idx === 0;
+  document.getElementById('btn-next').disabled = idx === steps.length - 1;
+  document.getElementById('progress').style.width = `${((idx+1)/steps.length)*100}%`;
+  updateDiagram(s.nodeId);
+}
+
+function changeStep(delta) {
+  const next = currentStep + delta;
+  if (next < 0 || next >= steps.length) return;
+  currentStep = next;
+  renderPanel(currentStep);
+}
+
+// Mermaid diagram update — rebuild with new active node
+const nodeDefs = {
+  Q: `Q["Merge queue\nserialized"]`,
+  A: `A(["PR merged / CI green"])`,
+  B: `B["Deploy pre-prod\nconcurrency: cancel-in-progress"]`,
+  C: `C["E2E + smoke on pre-prod\nsharded"]`,
+  D: `D["pre-prod-passed tag"]`,
+  F: `F["Soak and Sentry watch"]`,
+  G: `G(["Cron promote\nsandbox + prod (parallel)"])`,
+  H: `H(["Live (sandbox = prod)"])`,
+  I: `I["Flake quarantine\nauto-Jira / 14d SLA / 21d block"]`,
+  J: `J["Auto-rollback\n(restore previous image)"]`,
+  K: `K["Admin dashboard"]`
+};
+const newNodes = new Set(['Q','B','C','D','F','G','I','J','K']);
+const baseNodes = new Set(['A','H']);
+
+function buildMermaid(activeNodeId) {
+  const lines = ['flowchart TD'];
+  // Declare each node once with its full shape
+  Object.keys(nodeDefs).forEach(id => lines.push(`  ${nodeDefs[id]}`));
+  // Solid edges
+  const edges = [
+    ['Q','A'],
+    ['A','B'],['B','C'],['C','D'],['D','F'],['F','G'],['G','H'],
+    ['I','D']
+  ];
+  edges.forEach(([a,b]) => lines.push(`  ${a} --> ${b}`));
+  // Dotted edges (always have a label)
+  const dotted = [
+    ['C','I','flaky'],
+    ['H','J','Sentry'],['J','H','restore'],
+    ['H','K','monitor'],['K','J','rollback']
+  ];
+  dotted.forEach(([a,b,lbl]) => lines.push(`  ${a} -. ${lbl} .-> ${b}`));
+
+  // classes
+  Object.keys(nodeDefs).forEach(id => {
+    let cls;
+    if (id === activeNodeId) cls = 'active';
+    else if (newNodes.has(id)) cls = 'new';
+    else cls = 'node';
+    lines.push(`  class ${id} ${cls}`);
+  });
+  lines.push(`  classDef node fill:#1a1e28,stroke:#363d52,stroke-width:1.5px,color:#e2e6f0`);
+  lines.push(`  classDef new fill:#1c1a0e,stroke:#d97706,stroke-width:2px,color:#fbbf24`);
+  lines.push(`  classDef active fill:#3b0764,stroke:#a855f7,stroke-width:3px,color:#f3e8ff`);
+  return lines.join('\n');
+}
+
+async function updateDiagram(activeNodeId) {
+  const container = document.getElementById('diagram-container');
+  const def = buildMermaid(activeNodeId);
+  container.removeAttribute('data-processed');
+  container.textContent = def;
+  try {
+    await mermaid.run({ nodes: [container] });
+  } catch(e) {}
+  bindDiagramNodeClicks();
+}
+
+function goToStep(idx) {
+  if (idx < 0 || idx >= steps.length) return;
+  currentStep = idx;
+  renderPanel(currentStep);
+}
+
+function bindDiagramNodeClicks() {
+  const svg = document.querySelector('#diagram-container svg');
+  if (!svg) return;
+  svg.querySelectorAll('.node').forEach(node => {
+    const matched = Object.keys(nodeToStep).find(id =>
+      (node.id && node.id.includes('flowchart-' + id + '-')) || node.id === 'flowchart-' + id
+    );
+    if (!matched) return;
+    node.style.cursor = 'pointer';
+    node.addEventListener('mouseenter', () => {
+      if (steps[currentStep].nodeId === matched) return;
+      const shape = node.querySelector('rect, polygon, circle');
+      if (shape) shape.style.filter = 'brightness(1.3)';
+    });
+    node.addEventListener('mouseleave', () => {
+      if (steps[currentStep].nodeId === matched) return;
+      const shape = node.querySelector('rect, polygon, circle');
+      if (shape) shape.style.filter = '';
+    });
+    node.addEventListener('click', () => {
+      const idx = nodeToStep[matched];
+      if (idx !== undefined) goToStep(idx);
+    });
+  });
+}
+
+// ── DASHBOARD DATA ──
+// Single demo app; real env state populated by dashboard-live.js fetching
+// raw.githubusercontent.com/<owner>/<repo>/env/<env>/version.json. The
+// metrics fields (p95/err) stay illustrative — production would source them
+// from DataDog/Prometheus.
+const apps = ['cd-demo'];
+const envs = ['test', 'staging', 'prod'];
+const cardData = {
+  'cd-demo': {
+    test:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'142ms', err:'0.1%', p95t:'down', errt:'down' },
+    staging: { health:'healthy', ver:'…',  sha:'…', at:'…', by:'pipeline', p95:'138ms', err:'0.1%', p95t:'flat', errt:'flat' },
+    prod:    { health:'healthy', ver:'…',  sha:'…', at:'…', by:'cron',     p95:'135ms', err:'0.1%', p95t:'flat', errt:'flat' }
+  }
+};
+
+const activity = [
+  { time:'14:32:01', app:'ens',    ver:'v1.14.0', env:'test',    actor:'ci-bot',  reason:'auto on merge · sha e55aa02' },
+  { time:'14:31:58', app:'cma',    ver:'v3.88.2', env:'test',    actor:'ci-bot',  reason:'auto on merge · sha f02b441' },
+  { time:'14:31:55', app:'portal', ver:'v7.462.0',env:'test',    actor:'ci-bot',  reason:'auto on merge · sha c9e3a11' },
+  { time:'12:18:44', app:'portal', ver:'v7.461.0',env:'staging', actor:'ci-bot',  reason:'test-passed tag a3f92c1' },
+  { time:'11:02:10', app:'cma',    ver:'v3.88.2', env:'staging', actor:'ci-bot',  reason:'test-passed tag f02b441' },
+  { time:'08:00:03', app:'ens',    ver:'v1.13.5', env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' },
+  { time:'07:59:50', app:'cma',    ver:'v3.87.0', env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' },
+  { time:'yesterday', app:'portal',ver:'v7.460.0',env:'prod',    actor:'cron',    reason:'scheduled blue/green promote' }
+];
+
+const alerts = [
+  { sev:'red',   title:'portal · staging: p95 latency spike',  sub:'2.3× baseline · since 12:22 UTC' },
+  { sev:'amber', title:'ens · test: deploy health check failing', sub:'3 consecutive failures · ens-test ns' }
+];
+
+const flakes = [
+  { name: 'port-onboard.spec.ts',     since: '3d ago',  age: 3,  ageLabel: '3d',  assignee: '@author', status: 'Active' },
+  { name: 'mcr-vxc.spec.ts',          since: '9d ago',  age: 9,  ageLabel: '9d',  assignee: '@author', status: 'Day 14 escalation pending' },
+  { name: 'bgp-flap.spec.ts',         since: '22d ago', age: 22, ageLabel: '22d', assignee: '@author', status: 'RELEASE-BLOCKING' }
+];
+
+function renderGrid() {
+  const grid = document.getElementById('app-grid');
+  grid.innerHTML = apps.map(app => {
+    const cells = envs.map(env => {
+      const d = cardData[app][env];
+      const trendIcon = { up:'↑', down:'↓', flat:'→' };
+      const trendClass = { up:'trend-up', down:'trend-down', flat:'trend-flat' };
+      const canPromote = env !== 'prod';
+      const canRollback = env !== 'test';
+      const promoteBtn = canPromote ? `<button class="card-btn promote" onclick="event.stopPropagation()">Promote →</button>` : '';
+      const rollbackBtn = canRollback ? `<button class="card-btn rollback" onclick="openRollback('${app}','${env}')">↺ Rollback</button>` : '';
+      return `<div class="release-card ${d.health}">
+        <div class="card-top">
+          <span class="card-env">${env}</span>
+          <span class="health-badge ${d.health}">${d.health}</span>
+        </div>
+        <div class="card-version">${d.ver}</div>
+        <div class="card-sha">${d.sha}</div>
+        <div class="card-meta">Deployed <span>${d.at}</span> · <span>${d.by}</span></div>
+        <div class="metrics">
+          <div class="metric-row">
+            <div class="metric-label">P95</div>
+            <div class="metric-val">${d.p95} <span class="${trendClass[d.p95t]}">${trendIcon[d.p95t]}</span></div>
+          </div>
+          <div class="metric-row">
+            <div class="metric-label">ERR%</div>
+            <div class="metric-val">${d.err} <span class="${trendClass[d.errt]}">${trendIcon[d.errt]}</span></div>
+          </div>
+        </div>
+        <div class="card-actions">
+          ${promoteBtn}${rollbackBtn}
+          <button class="card-btn">Logs</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="app-row"><div class="app-row-label">${app}</div>${cells}</div>`;
+  }).join('');
+}
+
+function renderActivity() {
+  document.getElementById('activity-feed').innerHTML = activity.map(a =>
+    `<div class="activity-row">
+      <span class="act-time">${a.time}</span>
+      <span class="act-app">${a.app}</span>
+      <span class="act-ver">${a.ver}</span>
+      <span class="act-env"><span class="env-pill ${a.env}">${a.env}</span></span>
+      <span class="act-meta"><span class="actor">${a.actor}</span> · ${a.reason}</span>
+    </div>`
+  ).join('');
+}
+
+function renderAlerts() {
+  document.getElementById('alerts-list').innerHTML = alerts.map(a =>
+    `<div class="alert-row">
+      <div class="alert-dot ${a.sev}"></div>
+      <div class="alert-info">
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-sub">${a.sub}</div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function renderFlakes() {
+  const ageColor = (d) => d < 7 ? 'green' : (d <= 14 ? 'amber' : 'red');
+  const header = `<div class="flake-table-row header">
+    <div>Test name</div>
+    <div>Quarantined since</div>
+    <div>Age</div>
+    <div>Assignee</div>
+    <div>Status</div>
+    <div style="text-align:right">Actions</div>
+  </div>`;
+  const rows = flakes.map(f => {
+    const color = ageColor(f.age);
+    const blocking = f.age >= 21;
+    const escalation = f.age >= 7 && f.age < 21;
+    let statusHtml;
+    if (blocking) statusHtml = `<span class="flake-status blocking">🚫 RELEASE-BLOCKING</span>`;
+    else if (escalation) statusHtml = `<span class="flake-status escalation">${f.status}</span>`;
+    else statusHtml = `<span class="flake-status">${f.status}</span>`;
+    return `<div class="flake-table-row ${blocking ? 'row-blocking' : ''}">
+      <div class="flake-test-name">${f.name}</div>
+      <div class="flake-since">${f.since}</div>
+      <div><span class="flake-age-cell ${color}"><span class="flake-age-dot ${color}"></span>${f.ageLabel}</span></div>
+      <div class="flake-assignee">${f.assignee}</div>
+      <div>${statusHtml}</div>
+      <div class="flake-actions">
+        <button class="flake-action-btn">Re-enable</button>
+        <button class="flake-action-btn delete">Delete test</button>
+        <button class="flake-action-btn">Open Jira</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('flake-board').innerHTML = header + rows;
+  document.getElementById('flake-count').textContent = flakes.length;
+}
+
+// ── MODAL ──
+function openRollback(app, env) {
+  const d = cardData[app][env];
+  document.getElementById('modal-app').textContent = `${app} · ${env}`;
+  document.getElementById('modal-cur').textContent = `${d.ver} · ${d.sha}`;
+  // fake previous
+  const prev = { portal:{ prod:'v7.459.0 · 2c8f003', staging:'v7.460.0 · 8b3d119' }, cma:{ prod:'v3.86.0 · a1b2c3d', staging:'v3.88.1 · e4f5g6h' }, ens:{ prod:'v1.13.4 · b9c8d7e', staging:'v1.13.4 · b9c8d7e' } };
+  document.getElementById('modal-prev').textContent = (prev[app]||{})[env] || '—';
+  document.getElementById('modal-commits').textContent = env === 'prod' ? '3 commits' : '1 commit';
+  document.getElementById('modal-sentry').textContent = d.health === 'degraded' ? '⚠ 2 active issues in current version' : '✓ No active Sentry issues';
+  document.getElementById('modal-sentry').className = 'modal-row-val ' + (d.health==='degraded'?'bad':'good');
+  document.getElementById('rollback-modal').classList.add('open');
+}
+function closeModal() { document.getElementById('rollback-modal').classList.remove('open'); }
+function confirmRollback() {
+  closeModal();
+  // toast would go here
+}
+
+// ── VIEW TOGGLE ──
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  const btns = document.querySelectorAll('.toggle-btn');
+  if (v === 'walkthrough') btns[0].classList.add('active');
+  else btns[1].classList.add('active');
+}
+
+// ── CONTROLS ──
+let frozen = false;
+function toggleFreeze() {
+  frozen = !frozen;
+  const btn = document.getElementById('freeze-btn');
+  btn.textContent = frozen ? '▶ Resume Releases' : '⏸ Freeze Releases';
+  btn.classList.toggle('frozen', frozen);
+}
+function toggleAutoPromote(el) {
+  // visual only
+}
+
+// ── CRON COUNTDOWN ──
+let cronSecs = 3 * 3600 + 12 * 60;
+function tickCron() {
+  if (frozen) return;
+  cronSecs = Math.max(0, cronSecs - 1);
+  const h = Math.floor(cronSecs / 3600);
+  const m = Math.floor((cronSecs % 3600) / 60);
+  const s = cronSecs % 60;
+  let display = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+  document.getElementById('cron-countdown').textContent = display;
+}
+setInterval(tickCron, 1000);
+
+// ── INIT ──
+mermaid.initialize({ startOnLoad: false, theme: 'base',
+  themeVariables: { background: '#0d0f14', primaryTextColor: '#e2e6f0', lineColor: '#363d52',
+    edgeLabelBackground: '#13161d', clusterBkg: '#13161d' }
+});
+
+renderPanel(0);
+renderGrid();
+renderActivity();
+renderAlerts();
+renderFlakes();
+
+// Close modal on overlay click
+document.getElementById('rollback-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Bridge for dashboard-live.js (live env data + repository_dispatch rollback)
+window.cardData = cardData;
+window.renderDashboard = function () {
+  renderGrid();
+  renderActivity();
+};
+window.closeModal = closeModal;
+
+// Default banner values when running locally (overwritten by inject-version.js
+// before deploy.sh pushes to env/<env>).
+// ── INJECTED VERSION (do not edit by hand) ──
+document.getElementById('sha-display').textContent = 'dc284b9a2d2b2c42b6c3f369b9127200de8d4827';
+(function () {
+  var tsEl = document.getElementById('ts-display');
+  if (tsEl) tsEl.textContent = '2026-06-02T06:57:04Z';
+  var envEl = document.getElementById('env-display');
+  if (envEl) envEl.textContent = 'prod';
+})();
+// ── END INJECTED VERSION ──
+</script>
+<script src="dashboard-live.js" defer></script>
+</body>
+</html>
